@@ -20,3 +20,8 @@
 !*README
 !*LICENSE
 !*Makefile
+
+# Other
+target
+!pom.xml
+!Makefile
