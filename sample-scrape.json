@@ -1,0 +1,10 @@
+[
+	{
+		"query": "This is issue #532, and I wish to change around the lexer since there appears to be a bug with how the string tokenizer works",
+		"result": ["lex.c", "lex.h"]
+	},
+	{
+		"query": "Foo baz buz",
+		"result": ["foo.c", "baz.c", "buz.c"]
+	}
+]
