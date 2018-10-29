@@ -14,6 +14,7 @@
 !*.l
 !*.y
 !*.py
+!*.txt
 
 # Whitelist specific filenames
 !*.gitignore
@@ -23,5 +24,7 @@
 
 # Other
 target
+venv/
+.idea/
 !pom.xml
 !Makefile
