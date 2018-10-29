@@ -15,7 +15,6 @@
 !*.y
 !*.py
 
-
 # Whitelist specific filenames
 !*.gitignore
 !*README
@@ -24,8 +23,5 @@
 
 # Other
 target
-venv/
-.idea/
 !pom.xml
 !Makefile
-
