@@ -16,6 +16,7 @@
 !*.py
 !*.txt
 
+
 # Whitelist specific filenames
 !*.gitignore
 !*README
@@ -28,3 +29,4 @@ venv/
 .idea/
 !pom.xml
 !Makefile
+
