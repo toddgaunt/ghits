@@ -15,7 +15,7 @@
 !*.y
 !*.py
 !*.txt
-
+!*.java
 
 # Whitelist specific filenames
 !*.gitignore
