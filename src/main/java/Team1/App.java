@@ -62,17 +62,23 @@ public class App
      * Recursively add files to the index.
      * @param folder
      */
-    public static void indexFiles(File folder, IndexWriter indexWriter) throws Exception {
-        for (File entry : folder.listFiles()) {
+    public static void indexProject(File folder, IndexWriter indexWriter) throws Exception {
+    	final String[] valid_extensions = {".java", ".c", ".py"};
+    	for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
-                indexFiles(entry, indexWriter);
-            } else if(entry.getName().endsWith(".java")) { // Add only java files TODO add other types
-                System.out.println(entry.getName());
-                String fileContent = new String(Files.readAllBytes(entry.toPath()));
-                Document doc = new Document();
-                doc.add(new StringField("name", entry.getName(), Field.Store.YES));
-                doc.add(new TextField("content", fileContent, Field.Store.YES));
-                indexWriter.addDocument(doc);
+                indexProject(entry, indexWriter);
+            } else {
+            	final String name = entry.getName();
+            	for (String ext : valid_extensions) {
+            		if (name.endsWith(ext)) {
+            			System.out.println(entry.getName());
+                        String fileContent = new String(Files.readAllBytes(entry.toPath()));
+                        Document doc = new Document();
+                        doc.add(new StringField("name", entry.getName(), Field.Store.YES));
+                        doc.add(new TextField("content", fileContent, Field.Store.YES));
+                        indexWriter.addDocument(doc);
+            		}
+            	}   
             }
         }
     }
@@ -84,7 +90,8 @@ public class App
     public static void main(String[] args)
     {
         try {
-            if(args.length != 1) usage();
+            if(args.length != 1)
+            	usage();
 
             final File repoRootFolder = new File(args[0]);
 
@@ -95,7 +102,7 @@ public class App
 
 			/* Add the repository's files to the index */
             System.out.println("Files indexed:");
-            indexFiles(repoRootFolder, indexWriter);
+            indexProject(repoRootFolder, indexWriter);
             indexWriter.close();
 
 			/* Use the index */

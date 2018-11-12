@@ -1,0 +1,1 @@
+./scraper.py swaywm sway > out
