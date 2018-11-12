@@ -25,7 +25,7 @@ public class App
      */
     public static void usage()
     {
-        System.out.println("usage: make run REPO=path/to/root/of/repo");
+        System.out.println("usage: make run MODE=<index|query> REPO=path/to/root/of/repo");
         System.exit(-1);
     }
 
@@ -63,7 +63,7 @@ public class App
      * @param folder
      */
     public static void indexProject(File folder, IndexWriter indexWriter) throws Exception {
-    	final String[] valid_extensions = {".java", ".c", ".py"};
+    	final String[] valid_extensions = {".java", ".c", ".h", ".py"};
     	for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
                 indexProject(entry, indexWriter);
@@ -90,26 +90,37 @@ public class App
     public static void main(String[] args)
     {
         try {
-            if(args.length != 1)
+            if(args.length < 1)
             	usage();
+            
+            if (args[0].equals("index")) {
+            	if (args.length < 2)
+            		usage();
+            	final File repoRootFolder = new File(args[1]);
 
-            final File repoRootFolder = new File(args[0]);
+    			/* Setup the indexer */
+                Directory indexDir = FSDirectory.open(new File("index").toPath());
+                IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer());
+                IndexWriter indexWriter = new IndexWriter(indexDir, config);
 
-			/* Setup the indexer */
-            Directory indexDir = FSDirectory.open(new File("index").toPath());
-            IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer());
-            IndexWriter indexWriter = new IndexWriter(indexDir, config);
-
-			/* Add the repository's files to the index */
-            System.out.println("Files indexed:");
-            indexProject(repoRootFolder, indexWriter);
-            indexWriter.close();
-
-			/* Use the index */
-			File index = new File("index");
-            IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
-            String results = getQueryRFF(indexSearcher, "gridAdapter");
-            System.out.println('\n' + results);
+    			/* Add the repository's files to the index */
+                System.out.println("Files indexed:");
+                indexProject(repoRootFolder, indexWriter);
+                indexWriter.close();
+            } else if (args[0].equals("query")){
+            	String query = "";
+            	for (int i = 1; i < args.length; i += 1) {
+            		query += " " + args[i];
+            	}
+            	System.out.println("Query: " + query);
+            	/* Use the index */
+    			File index = new File("index");
+                IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
+                String results = getQueryRFF(indexSearcher, query);
+                System.out.println('\n' + results);
+            } else {
+            	usage();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

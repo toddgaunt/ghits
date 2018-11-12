@@ -8,5 +8,4 @@ clean:
 	rm -rf index/
 
 run: all
-	rm -rf index/
-	mvn exec:java -Dexec.mainClass="Team1.App" -Dexec.args="$(REPO)"
+	mvn exec:java -Dexec.mainClass="Team1.App" -Dexec.args="$(ARGS)"
