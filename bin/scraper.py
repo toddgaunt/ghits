@@ -31,7 +31,7 @@ def main():
     #print(json.dumps(pulls, indent=4, sort_keys=True))
     out = []
     for pull in pulls:
-        print(pull["diff_url"])
+        print(pull["diff_url"], file=sys.stderr)
         r = requests.get(pull["diff_url"])
         diff = r.text
         patch = PatchSet(diff)
