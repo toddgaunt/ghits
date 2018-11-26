@@ -8,13 +8,23 @@ from unidiff import PatchSet
 
 github_api = "https://api.github.com"
 
+def get_pulls(account, repo, page, n):
+        url_string = f'{github_api}/repos/{account}/{repo}/pulls?state=closed&page={page}&per_page={n}'
+        print(url_string)
+        r = requests.get(url_string)
+        if not r.ok:
+            print(f'Get request did not return OK ({r.status_code})')
+            sys.exit(-1)
+        return json.loads(r.text)
+
 def get_closed_pulls(account, repo, n):
-    r = requests.get(f'{github_api}/repos/{account}/{repo}/pulls?state=closed&page=0&per_page={n}')
-    print(f'{github_api}/repos/{account}/{repo}/pulls?state=closed&page=0&per_page={n}')
-    if not r.ok:
-        print(f'Get request did not return OK ({r.status_code})')
-        sys.exit(-1)
-    pulls = json.loads(r.text)
+    pulls = []
+    for page in range(0, (n // 30)):
+        if (page == n // 30):
+            pulls += get_pulls(account, repo, page, n % 30)
+        else:
+            pulls += get_pulls(account, repo, page, 30)
+        page += 1
     return pulls
 
 
