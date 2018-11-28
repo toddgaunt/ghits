@@ -9,3 +9,7 @@ clean:
 
 run: all
 	mvn exec:java -Dexec.mainClass="Team1.App" -Dexec.args="$(ARGS)"
+
+index: all
+	rm -rf index/
+	mvn exec:java -Dexec.mainClass="Team1.Indexer" -Dexec.args="$(ARGS)"
