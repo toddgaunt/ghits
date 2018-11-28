@@ -19,7 +19,7 @@ def get_pulls(account, repo, page, n):
 
 def get_closed_pulls(account, repo, n):
     pulls = []
-    for page in range(0, (n // 30)):
+    for page in range(0, (n // 30) + 1):
         if (page == n // 30):
             pulls += get_pulls(account, repo, page, n % 30)
         else:
@@ -27,6 +27,17 @@ def get_closed_pulls(account, repo, n):
         page += 1
     return pulls
 
+def split_dict(dict):
+    r1 = {}
+    r2 = {}
+    i = 0
+    for key in dict:
+        if (i < len(dict) // 2):
+            r1[key] = dict[key]
+        else:
+            r2[key] = dict[key]
+        i += 1
+    return r1, r2
 
 def main():
     parser = argparse.ArgumentParser(description="Pull some repo pulls")
@@ -39,18 +50,25 @@ def main():
     args = parser.parse_args(sys.argv[1:])
     pulls = get_closed_pulls(args.account, args.repo, args.n)
     #print(json.dumps(pulls, indent=4, sort_keys=True))
-    out = []
+    out = {}
     for pull in pulls:
         print(pull["diff_url"], file=sys.stderr)
         r = requests.get(pull["diff_url"])
         diff = r.text
         patch = PatchSet(diff)
-        tmp = {"query": pull["title"] + " " + pull["body"]}
-        tmp["added"] = list(map(lambda x: x.source_file, patch.added_files))
-        tmp["modified"] = list(map(lambda x: x.source_file, patch.modified_files))
-        tmp["removed"] = list(map(lambda x: x.source_file, patch.removed_files))
-        out.append(tmp)
-    print(json.dumps(out, indent=4, sort_keys=True))
+        tmp = {}
+        for file in map(lambda x: x.source_file, patch.added_files):
+            tmp[file] = 1
+        for file in map(lambda x: x.source_file, patch.modified_files):
+            tmp[file] = 1
+        for file in map(lambda x: x.source_file, patch.removed_files):
+            tmp[file] = 1
+        out[pull["title"] + pull["body"]] = tmp
+    test, train = split_dict(out)
+    with open("test.json", "w+") as f:
+        f.write(json.dumps(test, indent=4, sort_keys=True))
+    with open("train.json", "w+") as f:
+        f.write(json.dumps(train, indent=4, sort_keys=True))
 
 if __name__ == "__main__":
     main()
