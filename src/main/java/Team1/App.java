@@ -24,6 +24,8 @@ import org.apache.lucene.store.FSDirectory;
 
 public class App
 {
+    final static String[] valid_extensions = {".java", ".c", ".h", ".py"};
+
     /**
      * Prints to stdout the proper program usage and then exits.
      */
@@ -67,7 +69,6 @@ public class App
      * @param folder
      */
     public static void indexProject(File folder, IndexWriter indexWriter) throws Exception {
-    	final String[] valid_extensions = {".java", ".c", ".h", ".py"};
     	for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
                 indexProject(entry, indexWriter);
