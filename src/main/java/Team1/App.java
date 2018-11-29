@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
+import java.util.Scanner;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -21,6 +22,11 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+
+class Args {
+	String mapping_path;
+	String out_path;
+}
 
 public class App
 {
@@ -77,25 +83,75 @@ public class App
     	String normalized = Normalizer.normalize(query, Form.NFD);
     	return normalized.replaceAll("[^A-Za-z0-9_\\- ]", "");
     }
+    
+    public static Args parse_args(char[][] argv) {
+    	Args args = new Args();
+    	int ptr;
+    	String opt_arg = "";
+    	for (int i = 0; i < argv.length; ++i) {
+			ptr = 0;
+    		if ('-' == argv[i][ptr]) {
+				ptr += 1;
+				while ('\0' != argv[i][ptr]) {
+					ptr += 1;
+                    if ('\0' == argv[i][ptr]) {
+                    		if (i + 1 >= argv.length)
+                    			usage();
+                            opt_arg = new String(argv[i + 1]);
+                    } else {
+                            opt_arg = new String(argv[ptr]);
+                    }
+                    switch (argv[i][ptr - 1]) {
+                    case 'h':
+                            usage();
+                            break;
+                    case 'o':
+                            args.out_path = opt_arg;
+                            break;
+                    case 'm':
+                    		args.mapping_path = opt_arg;
+                    		break;
+                    default:
+                            usage();
+                    }
+				}
+			} else {
+				//TODO(todd): required arguments go here
+			}
+		}
+    	return args;
+    }
 
     /**
      * Main.
-     * @param args String[]. "PathToRepoRoot"
+     * @param argsv String[]. "PathToRepoRoot"
      */
-    public static void main(String[] args)
+    public static void main(String[] argsv)
     {
         try {
-			if (args.length < 2)
-				usage();
-			String query = readFile(args[1]);
-			System.out.println("Query: " + query);
-			String normalized_query = normalize_query(query);
-			System.out.println("Normalized Query: " + normalized_query);
-			/* Use the index */
+			char[][] argv = new char[argsv.length][0];
+			for (int i = 0; i < argv.length; ++i ) {
+				argv[i] = argsv[i].toCharArray();
+			}
+			Args args = parse_args(argv);
+			
+			Scanner reader = new Scanner(System.in);
 			File index = new File("index");
 			IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
-			String results = getQueryRFF(indexSearcher, normalized_query);
-			System.out.println('\n' + results);
+			while (true) {
+				System.out.print("Enter a query >> ");
+				String query = reader.nextLine();
+				if (query.equals("q") || query.equals("Q"))
+					break;
+				System.out.println("Query: " + query);
+				String normalized_query = normalize_query(query);
+				System.out.println("Normalized Query: " + normalized_query);
+				/* Use the index */
+				
+				String results = getQueryRFF(indexSearcher, normalized_query);
+				System.out.println('\n' + results);
+			}
+			reader.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
