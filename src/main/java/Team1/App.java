@@ -38,7 +38,10 @@ public class App
      */
     public static void usage()
     {
-        System.out.println("usage: ghits <index REPOSTRING | query QUERYFILE>");
+        System.out.println("usage: ghits [-d] [-m <mapping_path>] [-o <out_path>] ");
+        System.out.println("    -d    Set the debug flag to enable extra print-outs to stdout");
+        System.out.println("    -m    Specify the json file that provides a query expansion mapping");
+        System.out.println("    -o    Specify the path to the output file the program writes json rankings to");
         System.exit(-1);
     }
 
