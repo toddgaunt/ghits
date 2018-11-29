@@ -26,6 +26,7 @@ import org.apache.lucene.store.FSDirectory;
 class Args {
 	String mapping_path;
 	String out_path;
+	boolean debug;
 }
 
 public class App
@@ -59,18 +60,18 @@ public class App
         // Search for the top five files
         results = is.search(parser.parse(query), 5);
         hits = results.scoreDocs;
+        ret = "[\n";
         for (ScoreDoc hit: hits) {
             Document doc = is.doc(hit.doc);
-            ret += rank;
-            ret += " " + doc.get("name");
-            ret += " " + hit.score;
+            //ret += rank;
+            ret += "    " + doc.get("name");
+            //ret += " " + hit.score;
             ret += "\n";
             rank += 1;
         }
+        ret += "]";
         return ret;
     }
-
-   
     
     static String readFile(String path) throws IOException 
     {
@@ -86,18 +87,22 @@ public class App
     
     public static Args parse_args(char[][] argv) {
     	Args args = new Args();
+    	
+    	args.debug = false;
     	int ptr;
-    	String opt_arg = "";
+    	String opt_arg = null;
     	for (int i = 0; i < argv.length; ++i) {
 			ptr = 0;
     		if ('-' == argv[i][ptr]) {
 				ptr += 1;
-				while ('\0' != argv[i][ptr]) {
+				while (ptr != argv[i].length) {
 					ptr += 1;
-                    if ('\0' == argv[i][ptr]) {
-                    		if (i + 1 >= argv.length)
-                    			usage();
-                            opt_arg = new String(argv[i + 1]);
+                    if (argv[i].length == ptr) {
+                    		if (i + 1 < argv.length) {
+                    			opt_arg = new String(argv[i + 1]);
+                    		} else {
+                    			opt_arg = null;
+                    		}
                     } else {
                             opt_arg = new String(argv[ptr]);
                     }
@@ -106,10 +111,15 @@ public class App
                             usage();
                             break;
                     case 'o':
+                    		if (null == opt_arg) usage();
                             args.out_path = opt_arg;
                             break;
                     case 'm':
+                    		if (null == opt_arg) usage();
                     		args.mapping_path = opt_arg;
+                    		break;
+                    case 'd':
+                    		args.debug = true;
                     		break;
                     default:
                             usage();
@@ -143,13 +153,14 @@ public class App
 				String query = reader.nextLine();
 				if (query.equals("q") || query.equals("Q"))
 					break;
-				System.out.println("Query: " + query);
+				if (args.debug)
+					System.out.println("Query: " + query);
 				String normalized_query = normalize_query(query);
-				System.out.println("Normalized Query: " + normalized_query);
+				if (args.debug)
+					System.out.println("Normalized Query: " + normalized_query);
 				/* Use the index */
-				
 				String results = getQueryRFF(indexSearcher, normalized_query);
-				System.out.println('\n' + results);
+				System.out.println(results);
 			}
 			reader.close();
         } catch (Exception e) {
