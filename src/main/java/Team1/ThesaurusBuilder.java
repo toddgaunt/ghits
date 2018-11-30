@@ -1,13 +1,18 @@
 package Team1;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Vector;
+import java.util.*;
 
 public class ThesaurusBuilder {
     final static String[] valid_extensions = {".java", ".c", ".h", ".py"};
@@ -17,7 +22,7 @@ public class ThesaurusBuilder {
      * @return All the docs in a repo
      * @throws Exception
      */
-    public static void buildDocs(File folder, Vector<Document> docList, String rootName) throws Exception {
+    public static void buildDocs(File folder, ArrayList<Document> docList, String rootName) throws Exception {
         for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
                 buildDocs(entry, docList, rootName);
@@ -38,15 +43,54 @@ public class ThesaurusBuilder {
     }
 
 
+    public static ArrayList<String> analyze(String text) throws IOException {
+        Analyzer analyzer = new StandardAnalyzer();
+        ArrayList<String> result = new ArrayList<String>();
+        TokenStream tokenStream = analyzer.tokenStream("name", text);
+        CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
+        tokenStream.reset();
+        while(tokenStream.incrementToken()) {
+            result.add(attr.toString());
+        }
+        return result;
+    }
+
+    public static ArrayList<String> buildTerms(ArrayList<Document> docList) {
+        HashSet<String> set = new HashSet<String>();
+
+        for(Document d : docList) {
+            try {
+                set.addAll(analyze(d.get("content")));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return new ArrayList<String>(set);
+    }
+
 
     public static void main(String[] args) {
 
         ThesaurusBuilder thesaurusBuilder = new ThesaurusBuilder();
 
-        Vector<Document> docList = new Vector<Document>();
+        ArrayList<Document> docList = new ArrayList<Document>();
+        ArrayList<String> termList = new ArrayList<String>();
+
         try {
+            // Recursively build our list of docs
             buildDocs(new File("sway-master"), docList, "sway-master");
-            System.out.println(docList.size());
+            System.out.println("Number of docs: " + docList.size());
+
+            // Analyze each doc to strip out terms into list
+            termList = buildTerms(docList);
+            System.out.println("Number of terms: " + termList.size());
+
+            // With all the documents, we build term-document matrix
+            // Each document has an index (or columnID)
+            // Each term has an index (or rowID)
+            // Matrix A = #docs X #tokens
+
+
         } catch (Exception e) {
             e.printStackTrace();
         }
