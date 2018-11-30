@@ -14,6 +14,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 
+/**
+ * Class to represent the data of a term. Simplifies building term-doc matrix from Map.
+ */
+class Data {
+    double[] postings;
+    int indexID;
+    Data(int nDocs) {
+        postings = new double[nDocs];
+    }
+    void assignIndex(int id) { indexID = id; }
+    void increment(int i) { postings[i]++; }
+}
+
 public class ThesaurusBuilder {
     final static String[] valid_extensions = {".java", ".c", ".h", ".py"};
     /**
@@ -30,7 +43,7 @@ public class ThesaurusBuilder {
                 for (String ext : valid_extensions) {
                     if (entry.getName().endsWith(ext)) {
                         String name = "a" + folder.getPath().substring(rootName.length()).replace('\\','/') + "/" + entry.getName();
-                        System.out.println(name);
+//                        System.out.println(name);
                         String fileContent = new String(Files.readAllBytes(entry.toPath()));
                         Document doc = new Document();
                         doc.add(new StringField("name", name, Field.Store.YES));
@@ -42,7 +55,12 @@ public class ThesaurusBuilder {
         }
     }
 
-
+    /**
+     * Analyze given text and strip out terms into list.
+     * @param text
+     * @return
+     * @throws IOException
+     */
     public static ArrayList<String> analyze(String text) throws IOException {
         Analyzer analyzer = new StandardAnalyzer();
         ArrayList<String> result = new ArrayList<String>();
@@ -55,40 +73,61 @@ public class ThesaurusBuilder {
         return result;
     }
 
-    public static ArrayList<String> buildTerms(ArrayList<Document> docList) {
-        HashSet<String> set = new HashSet<String>();
+    /**
+     * Build term-doc matrix from a list of documents.
+     * @param docList
+     * @return
+     */
+    public static double[][] buildTermDocMatrix(ArrayList<Document> docList) throws Exception {
+        HashMap<String, Data> termDocs = new HashMap<>();
+        final int numDocs = docList.size(); // number of columns
 
-        for(Document d : docList) {
-            try {
-                set.addAll(analyze(d.get("content")));
-            } catch (Exception e) {
-                e.printStackTrace();
+        // build Map version of a term-doc matrix
+        for(int i = 0; i < docList.size(); i++) {
+            Document d = docList.get(i);
+            ArrayList<String> tokens = analyze(d.get("content"));
+
+            for (String t : tokens) {
+                Data termData = termDocs.get(t);
+                if (termData == null)
+                    termDocs.put(t, new Data(numDocs));
+                else
+                    termData.increment(i);
             }
         }
-        return new ArrayList<String>(set);
-    }
 
+        final int numTerms = termDocs.size(); // number of rowsd
+        double[][] A = new double[numTerms][numDocs]; // initialize 2D matrix
+
+        // copy values
+        int i = 0;
+        for(HashMap.Entry<String, Data> entry : termDocs.entrySet()) {
+            Data data = entry.getValue();
+            data.assignIndex(i);
+            A[data.indexID] = data.postings;
+            i++;
+        }
+        return A;
+    }
 
     public static void main(String[] args) {
 
-        ThesaurusBuilder thesaurusBuilder = new ThesaurusBuilder();
-
-        ArrayList<Document> docList = new ArrayList<Document>();
-        ArrayList<String> termList = new ArrayList<String>();
+        final String repoName = "sway-master";
 
         try {
             // Recursively build our list of docs
-            buildDocs(new File("sway-master"), docList, "sway-master");
+            ArrayList<Document> docList = new ArrayList<>();
+            buildDocs(new File(repoName), docList, repoName);
             System.out.println("Number of docs: " + docList.size());
-
-            // Analyze each doc to strip out terms into list
-            termList = buildTerms(docList);
-            System.out.println("Number of terms: " + termList.size());
 
             // With all the documents, we build term-document matrix
             // Each document has an index (or columnID)
             // Each term has an index (or rowID)
-            // Matrix A = #docs X #tokens
+            // Matrix A dimensions = #tokens X #docs
+            double[][] tDM = buildTermDocMatrix(docList);
+            System.out.println("How many times does 'int' occur in the first doc?  " + tDM[2617][0]);
+
+            double[][] coMatrix = MatrixUtilities.multiply(tDM, MatrixUtilities.transpose(tDM));
 
 
         } catch (Exception e) {
