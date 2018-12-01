@@ -8,6 +8,7 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Scanner;
 
+import org.json.*;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -53,9 +54,6 @@ public class App
      * @throws Exception
      */
     public static String getQueryRFF(IndexSearcher is, String query) throws Exception {
-        int rank = 1;
-        String ret = "";
-
         QueryParser parser = new QueryParser("content", new StandardAnalyzer());
         TopDocs results;
         ScoreDoc[] hits;
@@ -63,17 +61,12 @@ public class App
         // Search for the top five files
         results = is.search(parser.parse(query), 5);
         hits = results.scoreDocs;
-        ret = "[\n";
-        for (ScoreDoc hit: hits) {
+        JSONObject jsonObj = new JSONObject();
+        for(ScoreDoc hit: hits){
             Document doc = is.doc(hit.doc);
-            //ret += rank;
-            ret += "    " + doc.get("name");
-            //ret += " " + hit.score;
-            ret += "\n";
-            rank += 1;
+            jsonObj.put(doc.get("name"), hit.score);
         }
-        ret += "]";
-        return ret;
+        return jsonObj.toString(4);
     }
     
     static String readFile(String path) throws IOException 
