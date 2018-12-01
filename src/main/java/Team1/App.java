@@ -153,6 +153,7 @@ public class App
 			IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
 			while (true) {
 				System.out.print("Enter a query >> ");
+				System.out.flush();
 				String query = reader.nextLine();
 				if (query.equals("q") || query.equals("Q"))
 					break;
