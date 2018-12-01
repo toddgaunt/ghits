@@ -2,61 +2,78 @@
 
 import os
 import sys
+import threading
+import queue
 import argparse
 import json
-from pprint import pprint
+import pexpect
+import time
 import subprocess
-import re
-
-# argument parsing
-a = argparse.ArgumentParser(
-    description='evaluates the ghits tool, given a file with the truth data and a specific measure')
-# a.add_argument("-d", help="enable debug prinouts", default=False)
-a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
-a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
-a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
-a.add_argument("-m", help='<MAP | P@R | F1>', default="MAP", dest="method")
-arguments = a.parse_args()
-
-tool_dir = arguments.tool_path
-test_file = arguments.rel_file
-repo_dir = arguments.repo_path
-rel_data = json.load(open(test_file))
-
-# build the index
-cwd = os.getcwd()  # get current directory
-try:
-    process = subprocess.Popen("make index ARGS={repo}".format(repo=repo_dir), shell=True, stdout=subprocess.PIPE,
-                               cwd=tool_dir, universal_newlines=True)
-    for stdout_line in iter(process.stdout.readline, ""):
-        print(stdout_line)
-    process.stdout.close()
-    return_code = process.wait()
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, "make index")
-finally:
-    os.chdir(cwd)
-
-# #
-# try:
-#     process = subprocess.Popen("make run", shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE,
-#                                cwd=tool_dir, universal_newlines=True)
-#     for stdout_line in iter(process.stdout.readline, ""):
-#         print(stdout_line)
-#     process.stdout.close()
-#
-#     # run queries
-#     for query, files in rel_data.items():
-#         print(query)
-#         process.stdin.write(query)
-#         # for f in files:
-#         #     #print(f)
-#
-#     return_code = process.wait()
-#     if return_code:
-#         raise subprocess.CalledProcessError(return_code, "make run")
-# finally:
-#     os.chdir(cwd)
 
 
+# def t_output_reader(proc, outq):
+#     for line in iter(proc.stdout.readline, ""):
+#         outq.put(line)
 
+
+def output_reader(proc):
+    for line in iter(proc.stdout.readline, ""):
+        if line == "" and proc.poll() is not None:
+            break
+        print(line)
+    proc.stdout.close()
+
+
+def main():
+    # argument parsing
+    a = argparse.ArgumentParser(
+        description='evaluates the ghits tool, given a file with the truth data and a specific measure')
+    # a.add_argument("-d", help="enable debug prinouts", default=False)
+    a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
+    a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
+    a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
+    a.add_argument("-m", help='<MAP | P@R | F1>', default="MAP", dest="method")
+    arguments = a.parse_args()
+
+    tool_dir = arguments.tool_path
+    test_file = arguments.rel_file
+    repo_dir = arguments.repo_path
+    rel_data = json.load(open(test_file))
+
+    print("Building index...")
+    proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
+    proc.expect(pexpect.EOF)
+    print(proc.before)
+
+    print("Build tool...")
+    proc = pexpect.spawnu('make run', cwd=tool_dir)
+    proc.expect('')
+
+    # outq = queue.Queue()
+    # t = threading.Thread(target=t_output_reader, args=(proc, outq))
+    # t.daemon = True
+    # t.start()
+    #
+    # try:
+    #     time.sleep(0.30000)
+    #
+    #     try:
+    #         line = outq.get(block=False)
+    #         print(line, end="")
+    #     except queue.Empty:
+    #         print("no output yet")
+    #
+    #     time.sleep(0.1)
+    # finally:
+    #     proc.terminate()
+    #     try:
+    #         proc.wait(timeout=0.2)
+    #         print("== subproccess exited with rc = ", proc.returncode)
+    #     except subprocess.TimeoutExpired:
+    #         print("subproccess did not terminate in time")
+    #
+    # t.join()
+
+
+if __name__ == "__main__":
+    main()

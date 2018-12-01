@@ -1,2 +1,4 @@
-NumPy>=1.8.2
-SciPy>=0.13.3
+numpy>=1.14.4
+scipy>=1.1.0
+pytrec_eval>=0.3
+pexpect>=4.6.0
