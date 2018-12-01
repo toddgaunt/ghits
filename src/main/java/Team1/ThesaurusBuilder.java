@@ -20,11 +20,26 @@ import java.util.*;
 class Data {
     double[] postings;
     int indexID;
-    Data(int nDocs) {
+    String term;
+    Data(String t, int nDocs, int docIndex) {
+        term = t;
         postings = new double[nDocs];
+        increment(docIndex);
     }
     void assignIndex(int id) { indexID = id; }
     void increment(int i) { postings[i]++; }
+    void calcTFIDF() {
+        double docFreq = 0;
+        for (int i = 0; i < postings.length; i++) {
+            if(postings[i] != 0) docFreq++;
+        }
+        double N = postings.length;
+        double idf = Math.log10(N/docFreq);
+        for (int i = 0; i < postings.length; i++) {
+            double tf = postings[i];
+            postings[i] = tf * idf;
+        }
+    }
 }
 
 public class ThesaurusBuilder {
@@ -45,6 +60,7 @@ public class ThesaurusBuilder {
                         String name = "a" + folder.getPath().substring(rootName.length()).replace('\\','/') + "/" + entry.getName();
 //                        System.out.println(name);
                         String fileContent = new String(Files.readAllBytes(entry.toPath()));
+                        if(fileContent.length() == 0) continue;
                         Document doc = new Document();
                         doc.add(new StringField("name", name, Field.Store.YES));
                         doc.add(new TextField("content", fileContent, Field.Store.YES));
@@ -78,7 +94,7 @@ public class ThesaurusBuilder {
      * @param docList
      * @return
      */
-    public static double[][] buildTermDocMatrix(ArrayList<Document> docList) throws Exception {
+    public static double[][] buildTermDocMatrix(ArrayList<Document> docList, boolean normalize) throws Exception {
         HashMap<String, Data> termDocs = new HashMap<>();
         final int numDocs = docList.size(); // number of columns
 
@@ -86,27 +102,52 @@ public class ThesaurusBuilder {
         for(int i = 0; i < docList.size(); i++) {
             Document d = docList.get(i);
             ArrayList<String> tokens = analyze(d.get("content"));
-
+            // TODO(Andrew) include name
             for (String t : tokens) {
                 Data termData = termDocs.get(t);
                 if (termData == null)
-                    termDocs.put(t, new Data(numDocs));
+                    termDocs.put(t, new Data(t, numDocs, i));
                 else
                     termData.increment(i);
             }
         }
 
-        final int numTerms = termDocs.size(); // number of rowsd
+        final int numTerms = termDocs.size(); // number of rows
         double[][] A = new double[numTerms][numDocs]; // initialize 2D matrix
+
+        System.out.println("Number of terms: " + numTerms);
+
+        double[] termFreq = termDocs.get("int").postings;
+        System.out.println("Weight of 'int' in the first doc?  " + termFreq[0]);
+        System.out.println("Weight of 'int' in the sec doc?  " + termFreq[1]);
+        System.out.println("Weight of 'int' in the third doc?  " + termFreq[2]);
+        System.out.println("Weight of 'int' in the fourth doc?  " + termFreq[3]);
+        System.out.println("Weight of 'int' in the fifth doc?  " + termFreq[4]);
 
         // copy values
         int i = 0;
         for(HashMap.Entry<String, Data> entry : termDocs.entrySet()) {
             Data data = entry.getValue();
-            data.assignIndex(i);
-            A[data.indexID] = data.postings;
+            data.assignIndex(i); // assign each term an id (row index)
+            if(normalize) data.calcTFIDF(); // compute and assign tf-idf weighting to postings
+            A[data.indexID] = data.postings; // copy term's postings to term-doc matrix
             i++;
         }
+        // apply length normalization to each document
+        if(normalize) {
+            for (int j = 0; j < numDocs; j++) {
+                double squaredSum = 0;
+                for (int k = 0; k < numTerms; k++)
+                    squaredSum += A[k][j] * A[k][j];
+
+                double norm = Math.sqrt(squaredSum);
+                if (norm == 0)
+                    continue;
+                for (int k = 0; k < numTerms; k++)
+                    A[k][j] /= norm;
+            }
+        }
+
         return A;
     }
 
@@ -124,10 +165,12 @@ public class ThesaurusBuilder {
             // Each document has an index (or columnID)
             // Each term has an index (or rowID)
             // Matrix A dimensions = #tokens X #docs
-            double[][] tDM = buildTermDocMatrix(docList);
-            System.out.println("How many times does 'int' occur in the first doc?  " + tDM[2617][0]);
+            double[][] tDM = buildTermDocMatrix(docList, true);
 
             double[][] coMatrix = MatrixUtilities.multiply(tDM, MatrixUtilities.transpose(tDM));
+            MatrixUtilities.setDiagonal(coMatrix, 0);
+
+            System.out.println("Matrix");
 
 
         } catch (Exception e) {
