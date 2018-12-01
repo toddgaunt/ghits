@@ -48,12 +48,6 @@ def main():
     proc = pexpect.spawnu('make run', cwd=tool_dir)
     proc.expect(prompt)
     print(proc.before)
-    # for query in rel_data[0]:
-    #     if query != "":
-    #         proc.sendline(query)
-    #         print(proc.before)
-    #         break
-    #     proc.expect(prompt)
     for query, files in rel_data.items():
         proc.sendline(query.replace("\r\n", " "))
         print(proc.before + proc.after)

@@ -1,6 +1,7 @@
 package Team1;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -8,8 +9,7 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Scanner;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+import org.json.*;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -145,7 +145,8 @@ public class App
 			Scanner reader = new Scanner(System.in);
 			File index = new File("index");
 			IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
-			while (true) {
+            JSONObject resultsObj = new JSONObject();
+            while (true) {
 				System.out.print("Enter a query >> ");
 				System.out.flush();
 				String query = reader.nextLine();
@@ -157,9 +158,16 @@ public class App
                         System.out.println("Query: " + query);
                         System.out.println("Normalized Query: " + normalized_query);
                     /* Use the index */
-                    JSONObject resultsObj = new JSONObject();
-                    resultsObj.put(normalized_query, getQueryRFF(indexSearcher, normalized_query));
-                    System.out.println(resultsObj);
+
+                    resultsObj.put(query, getQueryRFF(indexSearcher, normalized_query));
+                    System.out.println(resultsObj.toString(4));
+
+                    try(FileWriter file = new FileWriter("output.json")){
+                        file.write(resultsObj.toString(4));
+                        file.flush();
+                    }catch (IOException e){
+                        e.printStackTrace();
+                    }
                 }
 			}
 			reader.close();
