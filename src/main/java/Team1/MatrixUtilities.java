@@ -44,11 +44,22 @@ public class MatrixUtilities {
      * @param m
      * @return
      */
-    public static double[][] transpose(double [][] m){
+    public static double[][] transpose(double[][] m){
         double[][] temp = new double[m[0].length][m.length];
         for (int i = 0; i < m.length; i++)
             for (int j = 0; j < m[0].length; j++)
                 temp[j][i] = m[i][j];
         return temp;
+    }
+
+    /**
+     * Set diagonal.
+     * @param m
+     * @return
+     */
+    public static void setDiagonal(double[][] m, double val) throws Exception {
+        if(m.length != m[0].length) throw new Exception("Matrix is not square!");
+        for (int i = 0; i < m.length; i++)
+            m[i][i] = val;
     }
 }
