@@ -2,8 +2,6 @@
 
 import os
 import sys
-import threading
-import queue
 import argparse
 import json
 import pexpect
@@ -45,34 +43,17 @@ def main():
     proc.expect(pexpect.EOF)
     print(proc.before)
 
-    print("Build tool...")
+    print("Building tool...")
+    prompt = "Enter a query >> "
     proc = pexpect.spawnu('make run', cwd=tool_dir)
-    proc.expect('')
-
-    # outq = queue.Queue()
-    # t = threading.Thread(target=t_output_reader, args=(proc, outq))
-    # t.daemon = True
-    # t.start()
-    #
-    # try:
-    #     time.sleep(0.30000)
-    #
-    #     try:
-    #         line = outq.get(block=False)
-    #         print(line, end="")
-    #     except queue.Empty:
-    #         print("no output yet")
-    #
-    #     time.sleep(0.1)
-    # finally:
-    #     proc.terminate()
-    #     try:
-    #         proc.wait(timeout=0.2)
-    #         print("== subproccess exited with rc = ", proc.returncode)
-    #     except subprocess.TimeoutExpired:
-    #         print("subproccess did not terminate in time")
-    #
-    # t.join()
+    proc.expect(prompt)
+    print(proc.before)
+    for query, files in rel_data.items():
+        proc.sendline(query)
+        print(proc.before)
+        break
+        # proc.expect(prompt)
+    proc.interact()
 
 
 if __name__ == "__main__":

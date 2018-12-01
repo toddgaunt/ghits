@@ -155,16 +155,18 @@ public class App
 				System.out.print("Enter a query >> ");
 				System.out.flush();
 				String query = reader.nextLine();
-				if (query.equals("q") || query.equals("Q"))
-					break;
-				if (args.debug)
-					System.out.println("Query: " + query);
-				String normalized_query = normalize_query(query);
-				if (args.debug)
-					System.out.println("Normalized Query: " + normalized_query);
-				/* Use the index */
-				String results = getQueryRFF(indexSearcher, normalized_query);
-				System.out.println(results);
+				if(!query.isEmpty()){
+                    if (query.equals("q") || query.equals("Q"))
+                        break;
+                    if (args.debug)
+                        System.out.println("Query: " + query);
+                    String normalized_query = normalize_query(query);
+                    if (args.debug)
+                        System.out.println("Normalized Query: " + normalized_query);
+                    /* Use the index */
+                    String results = getQueryRFF(indexSearcher, normalized_query);
+                    System.out.println(results);
+                }
 			}
 			reader.close();
         } catch (Exception e) {
