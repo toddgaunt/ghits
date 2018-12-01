@@ -8,8 +8,12 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
@@ -43,14 +47,14 @@ class Data {
 }
 
 public class ThesaurusBuilder {
-    final static String[] valid_extensions = {".java", ".c", ".h", ".py"};
+    final public static String[] valid_extensions = {".java", ".c", ".h", ".py"};
     /**
      * Build a list of Documents from a directory.
      * @param folder
      * @return All the docs in a repo
      * @throws Exception
      */
-    public static void buildDocs(File folder, ArrayList<Document> docList, String rootName) throws Exception {
+    private static void buildDocs(File folder, HashMap<String,Document> docList, String rootName) throws Exception {
         for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
                 buildDocs(entry, docList, rootName);
@@ -64,7 +68,7 @@ public class ThesaurusBuilder {
                         Document doc = new Document();
                         doc.add(new StringField("name", name, Field.Store.YES));
                         doc.add(new TextField("content", fileContent, Field.Store.YES));
-                        docList.add(doc);
+                        docList.put(name, doc);
                     }
                 }
             }
@@ -92,17 +96,24 @@ public class ThesaurusBuilder {
     /**
      * Build term-doc matrix from a list of documents.
      * @param docList
+     * @param normalize
      * @return
      */
-    public static double[][] buildTermDocMatrix(ArrayList<Document> docList, boolean normalize) throws Exception {
+    private static double[][] buildTermDocMatrix(ArrayList<Document> docList, boolean normalize,
+                                                 boolean termsFromIssue) throws Exception {
         HashMap<String, Data> termDocs = new HashMap<>();
         final int numDocs = docList.size(); // number of columns
 
         // build Map version of a term-doc matrix
         for(int i = 0; i < docList.size(); i++) {
             Document d = docList.get(i);
-            ArrayList<String> tokens = analyze(d.get("content"));
-            // TODO(Andrew) include name
+            ArrayList<String> tokens = new ArrayList();
+
+            if(termsFromIssue)
+                tokens = analyze(d.get("issue"));
+            else
+                tokens = analyze(d.get("code"));
+
             for (String t : tokens) {
                 Data termData = termDocs.get(t);
                 if (termData == null)
@@ -116,13 +127,6 @@ public class ThesaurusBuilder {
         double[][] A = new double[numTerms][numDocs]; // initialize 2D matrix
 
         System.out.println("Number of terms: " + numTerms);
-
-        double[] termFreq = termDocs.get("int").postings;
-        System.out.println("Weight of 'int' in the first doc?  " + termFreq[0]);
-        System.out.println("Weight of 'int' in the sec doc?  " + termFreq[1]);
-        System.out.println("Weight of 'int' in the third doc?  " + termFreq[2]);
-        System.out.println("Weight of 'int' in the fourth doc?  " + termFreq[3]);
-        System.out.println("Weight of 'int' in the fifth doc?  " + termFreq[4]);
 
         // copy values
         int i = 0;
@@ -151,32 +155,63 @@ public class ThesaurusBuilder {
         return A;
     }
 
+    private static void buildIssueCodeDocs(HashMap<String,Document> docList,
+                                           ArrayList<Document> issueCodeDocs, String trainJsonFile) throws Exception {
+        JSONParser parser = new JSONParser();
+        JSONObject jsonFile = (JSONObject) parser.parse(new FileReader(trainJsonFile));
+
+        // For each issue concatenate all code
+        for(Object o : jsonFile.entrySet()) {
+            Map.Entry<String, Object> issueAndCode = (Map.Entry) o;
+            Set<String> filesOfIssue = ((HashMap<String, Integer>) issueAndCode.getValue()).keySet();
+
+            String code = "";
+            for(String filename : filesOfIssue) {
+                Document file =  docList.get(filename);
+                if(file != null) // Append code if this file is in our docList
+                    code += file.get("content") + '\n';
+            }
+
+            // Only create and add doc if we had code
+            if(code.length() != 0) {
+                Document issueCodeDoc = new Document();
+                issueCodeDoc.add(new TextField("issue", issueAndCode.getKey(), Field.Store.YES));
+                issueCodeDoc.add(new TextField("code", code, Field.Store.YES));
+                issueCodeDocs.add(issueCodeDoc);
+            }
+        }
+
+        System.out.println(issueCodeDocs.size());
+
+    }
+
     public static void main(String[] args) {
 
         final String repoName = "sway-master";
+        final String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
 
         try {
-            // Recursively build our list of docs
-            ArrayList<Document> docList = new ArrayList<>();
+            // Recursively build our list of docs from repo
+            HashMap<String,Document> docList = new HashMap<>();
             buildDocs(new File(repoName), docList, repoName);
             System.out.println("Number of docs: " + docList.size());
+
+            ArrayList<Document> issueCodeDocs = new ArrayList<>();
+            buildIssueCodeDocs(docList, issueCodeDocs, trainJson);
 
             // With all the documents, we build term-document matrix
             // Each document has an index (or columnID)
             // Each term has an index (or rowID)
             // Matrix A dimensions = #tokens X #docs
-            double[][] tDM = buildTermDocMatrix(docList, true);
+            double[][] issueTDM = buildTermDocMatrix(issueCodeDocs, false, true);
+            double[][] codeTDM = buildTermDocMatrix(issueCodeDocs, false, false);
 
-            double[][] coMatrix = MatrixUtilities.multiply(tDM, MatrixUtilities.transpose(tDM));
-            MatrixUtilities.setDiagonal(coMatrix, 0);
+            double[][] coMatrix = MatrixUtilities.multiply(issueTDM, MatrixUtilities.transpose(codeTDM));
+//            MatrixUtilities.setDiagonal(coMatrix, 0);
 
-            System.out.println("Matrix");
-
-
+            System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
     }
 }
