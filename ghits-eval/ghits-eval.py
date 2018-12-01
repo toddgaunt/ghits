@@ -1,26 +1,68 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import sys
 import argparse
 import json
-from pprint import pprint
+import pexpect
+import time
 import subprocess
-import re
 
-# argument parsing
-a = argparse.ArgumentParser(
-    description='evaluates ghits retrieval, given a file with the relevant repos for each query and another file with the list of repos retrieved by our application.')
-a.add_argument("--q", help='in addition to summary evaluation, give evaluation for each query', default=False, action="store_true",
-               dest="q")
-a.add_argument("--qrel", help='path of file with list of relevant repos for each query', dest="rel_file") # required=True)
-a.add_argument("--m", help='shows a specific measure, shows [xxx] by default', default="tf-idf", dest="method")
-a.add_argument("--results", help='path the file with the list of repos retrieved by our application', dest="results_file", required=True)
-arguments = a.parse_args()
 
-# get commands
-# command = [arguments.q, arguments.rel_file, arguments.results_file]
-# read
-results_file = open(arguments.results_file)
-data = json.load(results_file)
-print(data)
+# def t_output_reader(proc, outq):
+#     for line in iter(proc.stdout.readline, ""):
+#         outq.put(line)
+
+
+def output_reader(proc):
+    for line in iter(proc.stdout.readline, ""):
+        if line == "" and proc.poll() is not None:
+            break
+        print(line)
+    proc.stdout.close()
+
+
+def main():
+    # argument parsing
+    a = argparse.ArgumentParser(
+        description='evaluates the ghits tool, given a file with the truth data and a specific measure')
+    # a.add_argument("-d", help="enable debug prinouts", default=False)
+    a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
+    a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
+    a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
+    a.add_argument("-m", help='<MAP | P@R | F1>', default="MAP", dest="method")
+    arguments = a.parse_args()
+
+    tool_dir = arguments.tool_path
+    test_file = arguments.rel_file
+    repo_dir = arguments.repo_path
+    rel_data = json.load(open(test_file))
+
+    print("Building index...")
+    proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
+    proc.expect(pexpect.EOF)
+    print(proc.before)
+
+    print("Building tool...")
+    prompt = "Enter a query >> "
+    proc = pexpect.spawnu('make run', cwd=tool_dir)
+    proc.expect(prompt)
+    print(proc.before)
+    # for query in rel_data[0]:
+    #     if query != "":
+    #         proc.sendline(query)
+    #         print(proc.before)
+    #         break
+    #     proc.expect(prompt)
+    for query, files in rel_data.items():
+        proc.sendline(query.replace("\r\n", " "))
+        print(proc.before + proc.after)
+        proc.expect(prompt)
+        # for f in files:
+        #     print(f)
+
+    proc.interact()
+
+
+if __name__ == "__main__":
+    main()
