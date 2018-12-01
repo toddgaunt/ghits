@@ -8,7 +8,8 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Scanner;
 
-import org.json.*;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -156,8 +157,9 @@ public class App
                         System.out.println("Query: " + query);
                         System.out.println("Normalized Query: " + normalized_query);
                     /* Use the index */
-                    JSONObject resultsObj = new JSONObject().put(normalized_query,getQueryRFF(indexSearcher, normalized_query));
-                    System.out.println(resultsObj.toString(4));
+                    JSONObject resultsObj = new JSONObject();
+                    resultsObj.put(normalized_query, getQueryRFF(indexSearcher, normalized_query));
+                    System.out.println(resultsObj);
                 }
 			}
 			reader.close();
