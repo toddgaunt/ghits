@@ -53,7 +53,7 @@ public class App
      * @return String with our compiled search results.
      * @throws Exception
      */
-    public static String getQueryRFF(IndexSearcher is, String query) throws Exception {
+    public static JSONObject getQueryRFF(IndexSearcher is, String query) throws Exception {
         QueryParser parser = new QueryParser("content", new StandardAnalyzer());
         TopDocs results;
         ScoreDoc[] hits;
@@ -66,7 +66,7 @@ public class App
             Document doc = is.doc(hit.doc);
             jsonObj.put(doc.get("name"), hit.score);
         }
-        return jsonObj.toString(4);
+        return jsonObj;
     }
     
     static String readFile(String path) throws IOException 
@@ -151,14 +151,13 @@ public class App
 				if(!query.isEmpty()){
                     if (query.equals("q") || query.equals("Q"))
                         break;
-                    if (args.debug)
-                        System.out.println("Query: " + query);
                     String normalized_query = normalize_query(query);
                     if (args.debug)
+                        System.out.println("Query: " + query);
                         System.out.println("Normalized Query: " + normalized_query);
                     /* Use the index */
-                    String results = getQueryRFF(indexSearcher, normalized_query);
-                    System.out.println(results);
+                    JSONObject resultsObj = new JSONObject().put(normalized_query,getQueryRFF(indexSearcher, normalized_query));
+                    System.out.println(resultsObj.toString(4));
                 }
 			}
 			reader.close();
