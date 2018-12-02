@@ -110,9 +110,13 @@ public class CoinFlip
 	
 	public static void main(String[] args) {
 		try {
+			if (args.length != 1) {
+				System.out.println("usage: coinflip <train.json>");
+				System.exit(-1);
+			}
 			File index = new File("index");
 			DirectoryReader dr = DirectoryReader.open(FSDirectory.open(index.toPath()));
-			GithubPullRequest[] pr = read_training_set("train.json");
+			GithubPullRequest[] pr = read_training_set(args[0]);
 			Map<String, List<String>> map = train(pr, dr);
 			JSONObject mapping = new JSONObject(map);
 			write_mapping(mapping, "coinflip_mapping.json");
