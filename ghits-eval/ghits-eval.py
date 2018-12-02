@@ -113,6 +113,36 @@ def main():
             proc.close()
         else:
             print("Exiting team1.app.")
+    elif method == 'thesaurus':
+        print("Building Team1.ThesaurusBuilder...")
+        print("Running thesaurus...")
+        proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.jon\"', cwd=tool_dir)
+        proc.wait()
+        if proc.isalive():
+            print("thesaurus did not exit gracefully.")
+            proc.close(force=True)
+        else:
+            print("Thesaurus done.")
+
+        print("Building Team1.App using thesaurus")
+        proc = pexpect.spawnu('make run ARGS=\"thesaurus.json\"', cwd=tool_dir)
+        proc.expect(prompt)
+        #print(proc.before)
+
+        for query, files in rel_data.items():
+            proc.sendline(normalize(query))
+            # print(proc.before + proc.after)
+            proc.expect(prompt)
+        if proc.isalive():
+            proc.sendline("q")
+            proc.close()
+
+        if proc.isalive():
+            print("team1.app did not exit gracefully.")
+            proc.close()
+        else:
+            print("Exiting team1.app.")
+
 
 
     print("Evaluating results...")
