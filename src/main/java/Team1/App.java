@@ -1,6 +1,7 @@
 package Team1;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -8,6 +9,7 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.Scanner;
 
+import org.json.*;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -52,10 +54,7 @@ public class App
      * @return String with our compiled search results.
      * @throws Exception
      */
-    public static String getQueryRFF(IndexSearcher is, String query) throws Exception {
-        int rank = 1;
-        String ret = "";
-
+    public static JSONObject getQueryRFF(IndexSearcher is, String query) throws Exception {
         QueryParser parser = new QueryParser("content", new StandardAnalyzer());
         TopDocs results;
         ScoreDoc[] hits;
@@ -63,17 +62,12 @@ public class App
         // Search for the top five files
         results = is.search(parser.parse(query), 5);
         hits = results.scoreDocs;
-        ret = "[\n";
-        for (ScoreDoc hit: hits) {
+        JSONObject jsonObj = new JSONObject();
+        for(ScoreDoc hit: hits){
             Document doc = is.doc(hit.doc);
-            //ret += rank;
-            ret += "    " + doc.get("name");
-            //ret += " " + hit.score;
-            ret += "\n";
-            rank += 1;
+            jsonObj.put(doc.get("name"), hit.score);
         }
-        ret += "]";
-        return ret;
+        return jsonObj;
     }
     
     static String readFile(String path) throws IOException 
@@ -151,21 +145,29 @@ public class App
 			Scanner reader = new Scanner(System.in);
 			File index = new File("index");
 			IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
-			while (true) {
+            JSONObject resultsObj = new JSONObject();
+            while (true) {
 				System.out.print("Enter a query >> ");
 				System.out.flush();
 				String query = reader.nextLine();
 				if(!query.isEmpty()){
                     if (query.equals("q") || query.equals("Q"))
                         break;
-                    if (args.debug)
-                        System.out.println("Query: " + query);
                     String normalized_query = normalize_query(query);
                     if (args.debug)
+                        System.out.println("Query: " + query);
                         System.out.println("Normalized Query: " + normalized_query);
                     /* Use the index */
-                    String results = getQueryRFF(indexSearcher, normalized_query);
-                    System.out.println(results);
+
+                    resultsObj.put(query, getQueryRFF(indexSearcher, normalized_query));
+                    System.out.println(resultsObj.toString(4));
+
+                    try(FileWriter file = new FileWriter("output.json")){
+                        file.write(resultsObj.toString(4));
+                        file.flush();
+                    }catch (IOException e){
+                        e.printStackTrace();
+                    }
                 }
 			}
 			reader.close();

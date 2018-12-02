@@ -27,6 +27,7 @@
 target
 venv/
 .idea/
+sway-master/
 !pom.xml
 !Makefile
 
