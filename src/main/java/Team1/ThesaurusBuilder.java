@@ -1,5 +1,6 @@
 package Team1;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -20,7 +21,8 @@ import java.nio.file.Files;
 import java.util.*;
 
 public class ThesaurusBuilder {
-    final public static String[] valid_extensions = {".java", ".c", ".h", ".py"};
+    public static final String[] valid_extensions = new String[] {".java", ".c", ".h", ".py"};
+    public static final Set<String> extentions = new HashSet<>(Arrays.asList(valid_extensions));
     private static String repoName = "sway-master";
     private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
     private static int numOfSynonyms = 3;
@@ -108,21 +110,18 @@ public class ThesaurusBuilder {
      */
     private static void buildDocs(File folder, HashMap<String,Document> docList, String rootName) throws Exception {
         for (File entry : folder.listFiles()) {
-            if (entry.isDirectory()) {
+            String filename = entry.getName();
+            if (entry.isDirectory())
                 buildDocs(entry, docList, rootName);
-            } else {
-                for (String ext : valid_extensions) {
-                    if (entry.getName().endsWith(ext)) {
-                        String name = "a" + folder.getPath().substring(rootName.length()).replace('\\','/') + "/" + entry.getName();
-//                        System.out.println(name);
-                        String fileContent = new String(Files.readAllBytes(entry.toPath()));
-                        if(fileContent.length() == 0) continue;
-                        Document doc = new Document();
-                        doc.add(new StringField("name", name, Field.Store.YES));
-                        doc.add(new TextField("content", fileContent, Field.Store.YES));
-                        docList.put(name, doc);
-                    }
-                }
+            else if (extentions.contains(FilenameUtils.getExtension(filename))) {
+                String path = folder.getPath().substring(rootName.length()).replace('\\', '/') + "/";
+                String name = "a" + path + filename;
+                String fileContent = new String(Files.readAllBytes(entry.toPath()));
+                if (fileContent.length() == 0) continue;
+                Document doc = new Document();
+                doc.add(new StringField("name", name, Field.Store.YES));
+                doc.add(new TextField("content", fileContent, Field.Store.YES));
+                docList.put(name, doc);
             }
         }
     }
