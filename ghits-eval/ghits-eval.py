@@ -89,7 +89,7 @@ def main():
     # print(json.dumps(order(rel_data), indent=4))
     # print(json.dumps(order(results_file), indent=4))
 
-    evaluator = pytrec_eval.RelevanceEvaluator(order(rel_data), {'map', 'ndcg'})
+    evaluator = pytrec_eval.RelevanceEvaluator(order(rel_data), {'map', 'ndcg', 'Rprec'})
     print(json.dumps(evaluator.evaluate(order(results_file)), indent=4))
 
 
