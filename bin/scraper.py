@@ -67,7 +67,7 @@ def main():
             tmp[file] = 1
         for file in map(lambda x: x.source_file, patch.removed_files):
             file = "/".join(list(Path(file).parts)[1:])
-            tmp[file .os] = 1
+            tmp[file] = 1
         out[pull["title"] + pull["body"]] = tmp
     test, train = split_dict(out)
     with open("test.json", "w+") as f:
