@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import org.json.simple.JSONArray;
@@ -40,13 +41,13 @@ class GithubPullRequest
 
 public class CoinFlip
 {
-	public static void train(GithubPullRequest[] pr, DirectoryReader dr) throws Exception {
+	public static Map<String, String> train(GithubPullRequest[] pr, DirectoryReader dr) throws Exception {
 		HashMap<String, String> map = new HashMap<String, String>();
 		Set<String> query_language = new HashSet<String>();
 		Set<String> corpus_language = new HashSet<String>();
 		for (GithubPullRequest p : pr) {
 			for (String s : p.query.split(" ")) {
-				query_language.add(s);
+				query_language.add(normalize(s));
 			}
 		}
 		for (int i = 0; i < dr.numDocs(); ++i) {
@@ -54,22 +55,33 @@ public class CoinFlip
 				corpus_language.add(normalize(s));
 			}
 		}
+		// Convert the corpus lanugage to an array to apply a random access mapping
+		String[] corpus_language_random_access = corpus_language.toArray(new String[corpus_language.size()]);
+		Random rand = new Random(System.currentTimeMillis());
+		// Randomly assign query_language terms to corpus_language terms
+		for (String word : query_language) {
+			map.put(word, corpus_language_random_access[rand.nextInt(corpus_language_random_access.length)]);
+		}
 		//System.out.println(query_language);
-		System.out.println(corpus_language);
+		//System.out.println(corpus_language);
+		//System.out.println(map);
+		return map;
 	}
 
 	public String transform(String query) {
 		return "";
 	}
 	
-	public static void write_mapping(String file_path) {
-	
+	public static void write_mapping(JSONObject mapping, String file_path) throws Exception {
+		FileWriter file = new FileWriter(file_path);
+        file.write(mapping.toString());
+        file.flush();
 	}
 	
 	public static String normalize(String query)
 	{
 	    	String normalized = Normalizer.normalize(query, Form.NFD);
-	    	return normalized.replaceAll("[^A-Za-z0-9_\\-+]", "");
+	    	return normalized.replaceAll("[^A-Za-z0-9_\\-+ ]", "");
 	}
 	
 	public static GithubPullRequest[] read_training_set(String file_path) throws Exception {
@@ -83,7 +95,7 @@ public class CoinFlip
             String[] file_paths = filesOfIssue.toArray(new String[filesOfIssue.size()]);
             
             GithubPullRequest tmp = new GithubPullRequest(filesOfIssue.size());
-            tmp.query = normalize(issueAndCode.getKey());
+            tmp.query = issueAndCode.getKey();
             tmp.file_path = file_paths;
         	//System.out.println(tmp.query);
         	//System.out.println("------");
@@ -98,8 +110,9 @@ public class CoinFlip
 			File index = new File("index");
 			DirectoryReader dr = DirectoryReader.open(FSDirectory.open(index.toPath()));
 			GithubPullRequest[] pr = read_training_set("train.json");
-			train(pr, dr);
-			//write_mapping("coinflip_mapping.json");
+			Map<String, String> map = train(pr, dr);
+			JSONObject mapping = new JSONObject(map);
+			write_mapping(mapping, "coinflip_mapping.json");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
