@@ -136,7 +136,7 @@ public class App
 
     /**
      * Expand query using a mapping json.
-     * @param args
+     * @param mapping
      * @param query
      * @return
      * @throws Exception
@@ -154,13 +154,11 @@ public class App
             }
 
             JSONArray synonyms = (JSONArray) obj;
-            System.out.println(synonyms.toString());
             expandedQuery += term + ' ';
             for (int i = 0; i < synonyms.length(); i++)
                 expandedQuery += synonyms.get(i).toString() + ' ';
         }
 
-        System.out.println("Expanded query: " + expandedQuery);
         return expandedQuery;
     }
 
