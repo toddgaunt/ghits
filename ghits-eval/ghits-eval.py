@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import argparse
 import json
 import pexpect
-import time
-import subprocess
+import pytrec_eval
 
 
 # def t_output_reader(proc, outq):
@@ -22,6 +19,17 @@ def output_reader(proc):
     proc.stdout.close()
 
 
+def normalize(s):
+    return s.replace("\r\n", " ")
+
+
+def normalize_queries(obj):
+    temp = {}
+    for query, items in obj.items():
+        temp[normalize(query)] = items
+    return temp
+
+
 def main():
     # argument parsing
     a = argparse.ArgumentParser(
@@ -30,7 +38,7 @@ def main():
     a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
     a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
     a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
-    a.add_argument("-m", help='<MAP | P@R | F1>', default="MAP", dest="method")
+    a.add_argument("-m", help='<map | P@R | F1>', default="MAP", dest="method")
     arguments = a.parse_args()
 
     tool_dir = arguments.tool_path
@@ -49,13 +57,25 @@ def main():
     proc.expect(prompt)
     print(proc.before)
     for query, files in rel_data.items():
-        proc.sendline(query.replace("\r\n", " "))
+        proc.sendline(normalize(query))
         print(proc.before + proc.after)
         proc.expect(prompt)
-        # for f in files:
-        #     print(f)
+    if proc.isalive():
+        proc.sendline("q")
+        proc.close()
 
-    proc.interact()
+    if proc.isalive():
+        print("tool did not exit gracefully.")
+    else:
+        print("Exiting tool...")
+
+    print("Evaluating...")
+
+    rel_data = normalize_queries(rel_data)
+
+    results_file = json.load(open(tool_dir+"output.json"))
+    evaluator = pytrec_eval.RelevanceEvaluator(rel_data, {'map', 'ndcg'})
+    print(json.dumps(evaluator.evaluate(results_file), indent=4))
 
 
 if __name__ == "__main__":
