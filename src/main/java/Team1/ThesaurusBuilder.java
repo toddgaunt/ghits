@@ -25,6 +25,7 @@ public class ThesaurusBuilder {
     private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
     private static int numOfSynonyms = 3;
     private static boolean normalizeFlag = true;
+    private static Analyzer analyzer = new StandardAnalyzer();
     private static TermData[] issueTermArray;
     private static TermData[] codeTermArray;
 
@@ -169,7 +170,6 @@ public class ThesaurusBuilder {
      * @throws IOException
      */
     public static ArrayList<String> analyze(String text) throws IOException {
-        Analyzer analyzer = new StandardAnalyzer();
         ArrayList<String> result = new ArrayList<String>();
         TokenStream tokenStream = analyzer.tokenStream("name", text);
         CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
@@ -191,7 +191,6 @@ public class ThesaurusBuilder {
     private static double[][] buildTermDocMatrix(ArrayList<Document> docList, HashMap<String, TermData> termDataMap,
                                                  boolean termsFromIssue) throws Exception {
         final int numDocs = docList.size(); // number of columns
-
         // build Map version of a term-doc matrix
         for(int i = 0; i < docList.size(); i++) {
             Document d = docList.get(i);
