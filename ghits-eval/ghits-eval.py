@@ -12,7 +12,7 @@ a = argparse.ArgumentParser(
 a.add_argument("-p", help='relative path to tool makefile', default="../", dest="tool_path")
 a.add_argument("-r", help="name of repo relative to makefile", default="TestRepo", dest="repo_path")
 a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
-a.add_argument("-m", help='<map | P@R | F1>', default="MAP", dest="method")
+a.add_argument("-m", help='<tf | coinflip | thesaurus>', dest="method", required=True)
 arguments = a.parse_args()
 
 # def t_output_reader(proc, outq):
@@ -53,34 +53,99 @@ def order(obj):
 def main():
 
     tool_dir = arguments.tool_path
-    test_file = arguments.rel_file
     repo_dir = arguments.repo_path
-    rel_data = json.load(open(test_file))
+    method = arguments.method
+    rel_data = json.load(open(arguments.rel_file))
+    prompt = "Enter a query >> "
 
     print("Building index...")
     proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
-    proc.expect(pexpect.EOF)
-    # print(proc.before)
-
-    print("Building tool...")
-    prompt = "Enter a query >> "
-    proc = pexpect.spawnu('make run', cwd=tool_dir)
-    proc.expect(prompt)
-    # print(proc.before)
-    for query, files in rel_data.items():
-        proc.sendline(normalize(query))
-        # print(proc.before + proc.after)
-        proc.expect(prompt)
+    proc.wait()
     if proc.isalive():
-        proc.sendline("q")
+        print("index did not exit gracefully.")
         proc.close()
-
-    if proc.isalive():
-        print("tool did not exit gracefully.")
     else:
-        print("Exiting tool...")
+        print("Exiting index.")
 
-    print("Evaluating...")
+    if method == 'tf':
+        print("Building Team1.app...")
+        proc = pexpect.spawnu('make run', cwd=tool_dir)
+        proc.expect(prompt)
+        # print(proc.before)
+        for query, files in rel_data.items():
+            proc.sendline(normalize(query))
+            # print(proc.before + proc.after)
+            proc.expect(prompt)
+        if proc.isalive():
+            proc.sendline("q")
+            proc.close()
+
+        if proc.isalive():
+            print("tool did not exit gracefully.")
+        else:
+            print("Exiting tool.")
+    elif method == 'coinflip':
+        print("Building Team1.CoinFlip...")
+        print("Running coinflip...")
+        proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon\"', cwd=tool_dir)
+        proc.wait()
+        if proc.isalive():
+            print("coinflip did not exit gracefully.")
+            proc.close(force=True)
+        else:
+            print("Coinflip done.")
+
+        print("Building Team1.App using coinflip_mappings.json")
+        proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json\"', cwd=tool_dir)
+        proc.expect(prompt)
+        #print(proc.before)
+
+        for query, files in rel_data.items():
+            proc.sendline(normalize(query))
+            #print(proc.before + proc.after)
+            proc.expect(prompt)
+        if proc.isalive():
+            proc.sendline("q")
+            proc.close()
+
+        if proc.isalive():
+            print("team1.app did not exit gracefully.")
+            proc.close()
+        else:
+            print("Exiting team1.app.")
+    elif method == 'thesaurus':
+        print("Building Team1.ThesaurusBuilder...")
+        print("Running thesaurus...")
+        proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.jon\"', cwd=tool_dir)
+        proc.wait()
+        if proc.isalive():
+            print("thesaurus did not exit gracefully.")
+            proc.close(force=True)
+        else:
+            print("Thesaurus done.")
+
+        print("Building Team1.App using thesaurus")
+        proc = pexpect.spawnu('make run ARGS=\"thesaurus.json\"', cwd=tool_dir)
+        proc.expect(prompt)
+        #print(proc.before)
+
+        for query, files in rel_data.items():
+            proc.sendline(normalize(query))
+            # print(proc.before + proc.after)
+            proc.expect(prompt)
+        if proc.isalive():
+            proc.sendline("q")
+            proc.close()
+
+        if proc.isalive():
+            print("team1.app did not exit gracefully.")
+            proc.close()
+        else:
+            print("Exiting team1.app.")
+
+
+
+    print("Evaluating results...")
 
     rel_data = normalize_queries(rel_data, repo_dir, True)
 

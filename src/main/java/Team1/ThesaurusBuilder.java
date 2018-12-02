@@ -1,5 +1,6 @@
 package Team1;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -20,7 +21,9 @@ import java.nio.file.Files;
 import java.util.*;
 
 public class ThesaurusBuilder {
-    final public static String[] valid_extensions = {".java", ".c", ".h", ".py"};
+    public static final String[] valid_extensions = new String[] {"java", "c", "h", "py"};
+    public static final Set<String> extentions = new HashSet<>(Arrays.asList(valid_extensions));
+    public static double threshold = 0.05;
     private static String repoName = "sway-master";
     private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
     private static int numOfSynonyms = 3;
@@ -30,16 +33,19 @@ public class ThesaurusBuilder {
     private static TermData[] codeTermArray;
 
     public static void main(String[] args) {
+        if(args.length == 1) // usage: thesaurus <train.json>
+            trainJson = args[0];
+
         try {
             double[][] coMatrix = buildCoMatrix();
             System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
 
             mapSynonyms(coMatrix);
-            issueTermArray[0].printSynonyms();
-            issueTermArray[1].printSynonyms();
+//            issueTermArray[0].printSynonyms();
+//            issueTermArray[1].printSynonyms();
             generateThesaurus("thesaurus.json", false);
             generateThesaurus("thesaurus-withweights.json", true);
-
+            System.out.println("thesaurus.json was built successfully!");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -71,36 +77,6 @@ public class ThesaurusBuilder {
     }
 
     /**
-     * Generate a json thesaurus file from issueTermArray (w1 -> issue+code -> w2).
-     * @param filename
-     * @param includeWeights boolean Include weights for each synonym to view in json file.
-     * @throws Exception
-     */
-    private static void generateThesaurus(String filename, boolean includeWeights) throws Exception{
-        JSONObject map = new JSONObject();
-
-        for (int i = 0; i < issueTermArray.length; i++) {
-            TermData td = issueTermArray[i];
-            JSONArray list = new JSONArray();
-            for (int j = 0; j < numOfSynonyms; j++) {
-                TermWeight tw = td.synonyms.get(j);
-                if(includeWeights) {
-                    JSONObject synonym = new JSONObject();
-                    synonym.put(tw.term, tw.val);
-                    list.add(synonym);
-                }
-                else
-                    list.add(tw.term);
-            }
-            map.put(td.term, list);
-        }
-
-        FileWriter file = new FileWriter(filename);
-        file.write(map.toJSONString());
-        file.flush();
-    }
-
-    /**
      * Build a list of Documents from a directory.
      * @param folder
      * @return All the docs in a repo
@@ -108,21 +84,18 @@ public class ThesaurusBuilder {
      */
     private static void buildDocs(File folder, HashMap<String,Document> docList, String rootName) throws Exception {
         for (File entry : folder.listFiles()) {
-            if (entry.isDirectory()) {
+            String filename = entry.getName();
+            if (entry.isDirectory())
                 buildDocs(entry, docList, rootName);
-            } else {
-                for (String ext : valid_extensions) {
-                    if (entry.getName().endsWith(ext)) {
-                        String name = "a" + folder.getPath().substring(rootName.length()).replace('\\','/') + "/" + entry.getName();
-//                        System.out.println(name);
-                        String fileContent = new String(Files.readAllBytes(entry.toPath()));
-                        if(fileContent.length() == 0) continue;
-                        Document doc = new Document();
-                        doc.add(new StringField("name", name, Field.Store.YES));
-                        doc.add(new TextField("content", fileContent, Field.Store.YES));
-                        docList.put(name, doc);
-                    }
-                }
+            else if (extentions.contains(FilenameUtils.getExtension(filename))) {
+                String path = folder.getPath().substring(rootName.length()).replace('\\', '/') + "/";
+                String name = "a" + path + filename;
+                String fileContent = new String(Files.readAllBytes(entry.toPath()));
+                if (fileContent.length() == 0) continue;
+                Document doc = new Document();
+                doc.add(new StringField("name", name, Field.Store.YES));
+                doc.add(new TextField("content", fileContent, Field.Store.YES));
+                docList.put(name, doc);
             }
         }
     }
@@ -256,14 +229,45 @@ public class ThesaurusBuilder {
 
         for (int i = 0; i < numIssueTerms; i++) {
             PriorityQueue<TermWeight> termWeights = new PriorityQueue<>();
-            TermData issueTermData = issueTermArray[i];
+            ArrayList<TermWeight> syns = issueTermArray[i].synonyms;
 
             for (int j = 0; j < numCodeTerms; j++)
                 termWeights.add(new TermWeight(codeTermArray[j].term, coMatrix[i][j]));
 
-            for (int j = 0; j < numOfSynonyms; j++)
-                issueTermData.synonyms.add(termWeights.poll());
+            for (TermWeight tw = termWeights.poll(); tw.val > threshold && syns.size() < 3; tw = termWeights.poll())
+                syns.add(tw);
         }
+    }
+
+    /**
+     * Generate a json thesaurus file from issueTermArray (w1 -> issue+code -> w2).
+     * @param filename
+     * @param includeWeights boolean Include weights for each synonym to view in json file.
+     * @throws Exception
+     */
+    private static void generateThesaurus(String filename, boolean includeWeights) throws Exception{
+        JSONObject map = new JSONObject();
+
+        for (int i = 0; i < issueTermArray.length; i++) {
+            TermData td = issueTermArray[i];
+            if(td.synonyms.isEmpty()) continue;
+
+            JSONArray list = new JSONArray();
+            for (TermWeight tw : td.synonyms) {
+                if(includeWeights) {
+                    JSONObject synonym = new JSONObject();
+                    synonym.put(tw.term, tw.val);
+                    list.add(synonym);
+                }
+                else
+                    list.add(tw.term);
+            }
+            map.put(td.term, list);
+        }
+
+        FileWriter file = new FileWriter(filename);
+        file.write(map.toJSONString());
+        file.flush();
     }
 }
 
