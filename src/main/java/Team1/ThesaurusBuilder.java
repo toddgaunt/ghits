@@ -21,7 +21,7 @@ import java.nio.file.Files;
 import java.util.*;
 
 public class ThesaurusBuilder {
-    public static final String[] valid_extensions = new String[] {".java", ".c", ".h", ".py"};
+    public static final String[] valid_extensions = new String[] {"java", "c", "h", "py"};
     public static final Set<String> extentions = new HashSet<>(Arrays.asList(valid_extensions));
     private static String repoName = "sway-master";
     private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
@@ -32,16 +32,19 @@ public class ThesaurusBuilder {
     private static TermData[] codeTermArray;
 
     public static void main(String[] args) {
+        if(args.length == 1) // usage: thesaurus <train.json>
+            trainJson = args[0];
+
         try {
             double[][] coMatrix = buildCoMatrix();
             System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
 
             mapSynonyms(coMatrix);
-            issueTermArray[0].printSynonyms();
-            issueTermArray[1].printSynonyms();
+//            issueTermArray[0].printSynonyms();
+//            issueTermArray[1].printSynonyms();
             generateThesaurus("thesaurus.json", false);
             generateThesaurus("thesaurus-withweights.json", true);
-
+            System.out.println("thesaurus.json was built successfully!");
         } catch (Exception e) {
             e.printStackTrace();
         }
