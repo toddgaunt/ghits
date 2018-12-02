@@ -74,7 +74,9 @@ public class App
     }
     
     public static Args parse_args(String[] args) {
-    	String outPath = "", mapPath = "";
+    	// Default arguments
+    	String outPath = "ghits_output.json";
+    	String mapPath = null;
     	boolean debug = false;
 
         char[][] argv = new char[args.length][0];
@@ -181,31 +183,26 @@ public class App
      */
     public static void main(String[] argsv)
     {
-        boolean customRun = argsv.length > 1;
         try {
-            Args args;
-            if(customRun)
-                args = parse_args(argsv);
-			else // default run
-                args = new Args("thesaurus.json", "", true);
-
+            Args args = parse_args(argsv);
 			String query = queryPrompt();
-            while (!query.equals("q")) {
+            while (!query.equals("q") && !query.equals("Q")) {
                 if (args.debug)
                     System.out.println("Original Query: " + query);
-
-                // Query expansion
-                query = queryExpansion(args, query, false);
-                if (args.debug)
-                    System.out.println("Expanded Query: " + query);
-
+                if (args.mapping_path != null) {
+                	// Query expansion
+                	query = queryExpansion(args, query, false);
+                	if (args.debug)
+                		System.out.println("Expanded Query: " + query);
+                
+                }
                 // Run retrieval and store in json
                 JSONObject resultsObj = new JSONObject();
                 resultsObj.put(query, getQueryRFF(query));
                 System.out.println(resultsObj.toString(4));
 
                 // Write json to file
-                FileWriter file = new FileWriter("output.json");
+                FileWriter file = new FileWriter(args.out_path);
                 file.write(resultsObj.toString(4));
                 file.flush();
                 query = queryPrompt();
