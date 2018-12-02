@@ -180,10 +180,8 @@ public class App
         boolean customRun = argsv.length > 1;
         try {
             Args args;
-            if(customRun) {
-
+            if(customRun)
                 args = parse_args(argsv);
-            }
 			else // default run
                 args = new Args("thesaurus.json", "", true);
 
