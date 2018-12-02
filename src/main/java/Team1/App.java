@@ -6,10 +6,14 @@ import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 import org.json.*;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -31,6 +35,8 @@ class Args {
 
 public class App
 {
+	public static Analyzer analyzer = new StandardAnalyzer();
+	
     /**
      * Prints to stdout the proper program usage and then exits.
      */
@@ -133,6 +139,24 @@ public class App
         JSONObject map = new JSONObject(new JSONTokener(is));
         return map;
     }
+    
+    /**
+     * Analyze given text and tokenize it into a list of terms.
+     * @param text
+     * @return
+     * @throws IOException
+     */
+    public static ArrayList<String> tokenize(String text) throws IOException {
+        ArrayList<String> result = new ArrayList<String>();
+        TokenStream tokenStream = analyzer.tokenStream("name", text);
+        CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
+        tokenStream.reset();
+        while(tokenStream.incrementToken()) {
+            result.add(attr.toString());
+        }
+        tokenStream.close();
+        return result;
+    }
 
     /**
      * Expand query using a mapping json.
@@ -141,17 +165,17 @@ public class App
      * @return
      * @throws Exception
      */
-    public static String expandQuery(JSONObject mapping, String query) throws Exception {
-        ArrayList<String> termsInQuery = ThesaurusBuilder.analyze(query);
-
-        String expandedQuery = "";
-        for(String term : termsInQuery) {
-            Object obj = mapping.get(term);
-
-            if(obj == null) { // if term not in map, just add back to query with no transformation.
-                expandedQuery += term + ' ';
+    public static String expandQuery(JSONObject mapping, List<String> queryTerms) throws Exception {
+    	String expandedQuery = "";
+        for(String term : queryTerms) {
+        	Object obj;
+        	try {
+        		obj = mapping.get(term);
+        	} catch (JSONException e) {
+        		// if term not in map, just add back to query with no transformation.
+        		expandedQuery += term + ' ';
                 continue;
-            }
+        	}
 
             JSONArray synonyms = (JSONArray) obj;
             expandedQuery += term + ' ';
@@ -203,7 +227,7 @@ public class App
                     System.out.println("Original Query: " + query);
                 // If a mappings file was provided, use it to expand the query
                 if (mapping != null) {
-                	query = expandQuery(mapping, query);
+                	query = expandQuery(mapping, tokenize(query));
                 	if (args.debug)
                 		System.out.println("Expanded Query: " + query);
                 

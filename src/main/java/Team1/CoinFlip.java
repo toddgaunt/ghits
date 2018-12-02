@@ -10,6 +10,7 @@ import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -41,17 +42,17 @@ class GithubPullRequest
 
 public class CoinFlip
 {
-	public static Map<String, String> train(GithubPullRequest[] pr, DirectoryReader dr) throws Exception {
-		HashMap<String, String> map = new HashMap<String, String>();
+	public static Map<String, List<String>> train(GithubPullRequest[] pr, DirectoryReader dr) throws Exception {
+		HashMap<String, List<String>> map = new HashMap<String, List<String>>();
 		Set<String> query_language = new HashSet<String>();
 		Set<String> corpus_language = new HashSet<String>();
 		for (GithubPullRequest p : pr) {
-			for (String s : p.query.split(" ")) {
+			for (String s : App.tokenize(p.query)) {
 				query_language.add(normalize(s));
 			}
 		}
 		for (int i = 0; i < dr.numDocs(); ++i) {
-			for (String s : dr.document(i).get("content").split(" ")) {
+			for (String s : App.tokenize(dr.document(i).get("content"))) {
 				corpus_language.add(normalize(s));
 			}
 		}
@@ -60,7 +61,9 @@ public class CoinFlip
 		Random rand = new Random(System.currentTimeMillis());
 		// Randomly assign query_language terms to corpus_language terms
 		for (String word : query_language) {
-			map.put(word, corpus_language_random_access[rand.nextInt(corpus_language_random_access.length)]);
+			ArrayList<String> tmp = new ArrayList<String>();
+			tmp.add(corpus_language_random_access[rand.nextInt(corpus_language_random_access.length)]);
+			map.put(word, tmp);
 		}
 		//System.out.println(query_language);
 		//System.out.println(corpus_language);
@@ -110,7 +113,7 @@ public class CoinFlip
 			File index = new File("index");
 			DirectoryReader dr = DirectoryReader.open(FSDirectory.open(index.toPath()));
 			GithubPullRequest[] pr = read_training_set("train.json");
-			Map<String, String> map = train(pr, dr);
+			Map<String, List<String>> map = train(pr, dr);
 			JSONObject mapping = new JSONObject(map);
 			write_mapping(mapping, "coinflip_mapping.json");
 		} catch (Exception e) {

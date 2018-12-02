@@ -25,7 +25,7 @@ public class ThesaurusBuilder {
     private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
     private static int numOfSynonyms = 3;
     private static boolean normalizeFlag = true;
-    private static Analyzer analyzer = new StandardAnalyzer();
+    private static Analyzer analyzer = App.analyzer;
     private static TermData[] issueTermArray;
     private static TermData[] codeTermArray;
 
@@ -177,6 +177,7 @@ public class ThesaurusBuilder {
         while(tokenStream.incrementToken()) {
             result.add(attr.toString());
         }
+        tokenStream.close();
         return result;
     }
 
