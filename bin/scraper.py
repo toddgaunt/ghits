@@ -4,6 +4,8 @@ import requests
 import json
 import argparse
 import sys
+import os
+from pathlib import Path
 from unidiff import PatchSet
 
 github_api = "https://api.github.com"
@@ -58,11 +60,14 @@ def main():
         patch = PatchSet(diff)
         tmp = {}
         for file in map(lambda x: x.source_file, patch.added_files):
+            file = "/".join(list(Path(file).parts)[1:])
             tmp[file] = 1
         for file in map(lambda x: x.source_file, patch.modified_files):
+            file = "/".join(list(Path(file).parts)[1:])
             tmp[file] = 1
         for file in map(lambda x: x.source_file, patch.removed_files):
-            tmp[file] = 1
+            file = "/".join(list(Path(file).parts)[1:])
+            tmp[file .os] = 1
         out[pull["title"] + pull["body"]] = tmp
     test, train = split_dict(out)
     with open("test.json", "w+") as f:
