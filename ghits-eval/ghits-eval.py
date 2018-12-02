@@ -4,6 +4,7 @@ import argparse
 import json
 import pexpect
 import pytrec_eval
+from collections import OrderedDict
 
 
 # def t_output_reader(proc, outq):
@@ -30,6 +31,10 @@ def normalize_queries(obj):
     return temp
 
 
+def order(obj):
+    return json.loads(json.dumps(obj, sort_keys=True))
+
+
 def main():
     # argument parsing
     a = argparse.ArgumentParser(
@@ -49,16 +54,16 @@ def main():
     print("Building index...")
     proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
     proc.expect(pexpect.EOF)
-    print(proc.before)
+    # print(proc.before)
 
     print("Building tool...")
     prompt = "Enter a query >> "
     proc = pexpect.spawnu('make run', cwd=tool_dir)
     proc.expect(prompt)
-    print(proc.before)
+    # print(proc.before)
     for query, files in rel_data.items():
         proc.sendline(normalize(query))
-        print(proc.before + proc.after)
+        # print(proc.before + proc.after)
         proc.expect(prompt)
     if proc.isalive():
         proc.sendline("q")
@@ -74,8 +79,12 @@ def main():
     rel_data = normalize_queries(rel_data)
 
     results_file = json.load(open(tool_dir+"output.json"))
-    evaluator = pytrec_eval.RelevanceEvaluator(rel_data, {'map', 'ndcg'})
-    print(json.dumps(evaluator.evaluate(results_file), indent=4))
+
+    # print(order(rel_data))
+    # print(order(results_file))
+
+    evaluator = pytrec_eval.RelevanceEvaluator(order(rel_data), {'map', 'ndcg'})
+    print(json.dumps(evaluator.evaluate(order(results_file)), indent=4))
 
 
 if __name__ == "__main__":
