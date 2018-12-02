@@ -125,6 +125,14 @@ public class App
 		}
     	return new Args(mapPath, outPath, debug);
     }
+    
+    public static JSONObject read_mappings(String mappings_path) throws Exception {
+    	InputStream is = new FileInputStream(mappings_path);
+        if (is == null)
+            throw new NullPointerException("Cannot find  file " + mappings_path);
+        JSONObject map = new JSONObject(new JSONTokener(is));
+        return map;
+    }
 
     /**
      * Expand query using a mapping json.
@@ -133,27 +141,21 @@ public class App
      * @return
      * @throws Exception
      */
-    public static String queryExpansion(Args args, String query, boolean flip) throws Exception {
-        InputStream is = new FileInputStream(args.mapping_path);
-        if (is == null)
-            throw new NullPointerException("Cannot find  file " + args.mapping_path);
-        JSONObject map = new JSONObject(new JSONTokener(is));
-
+    public static String expandQuery(JSONObject mapping, String query) throws Exception {
         ArrayList<String> termsInQuery = ThesaurusBuilder.analyze(query);
 
         String expandedQuery = "";
         for(String term : termsInQuery) {
-            Object obj = map.get(term);
+            Object obj = mapping.get(term);
 
-            if(obj == null) { // if term not in map, just add back to query and skip
+            if(obj == null) { // if term not in map, just add back to query with no transformation.
                 expandedQuery += term + ' ';
                 continue;
             }
 
             JSONArray synonyms = (JSONArray) obj;
             System.out.println(synonyms.toString());
-            if(!flip)
-                expandedQuery += term + ' ';
+            expandedQuery += term + ' ';
             for (int i = 0; i < synonyms.length(); i++)
                 expandedQuery += synonyms.get(i).toString() + ' ';
         }
@@ -184,24 +186,37 @@ public class App
     public static void main(String[] argsv)
     {
         try {
+        	// Parse arguments and flags
             Args args = parse_args(argsv);
+			// Read in the query expansion mappings file if given
+			JSONObject mapping = null;
+			if (args.mapping_path != null) {
+				try {
+					mapping = read_mappings(args.mapping_path);
+				} catch (Exception e) {
+					mapping = null;
+					System.out.println("Unable to open mappings file, proceeding without query expansion");
+				}
+			}
 			String query = queryPrompt();
+			// Begin the main interactive loop to ask the user for queries to search on
             while (!query.equals("q") && !query.equals("Q")) {
                 if (args.debug)
                     System.out.println("Original Query: " + query);
-                if (args.mapping_path != null) {
-                	// Query expansion
-                	query = queryExpansion(args, query, false);
+                // If a mappings file was provided, use it to expand the query
+                if (mapping != null) {
+                	query = expandQuery(mapping, query);
                 	if (args.debug)
                 		System.out.println("Expanded Query: " + query);
                 
                 }
-                // Run retrieval and store in json
+                
+                // Run rankings retrieval, store as json, and output results to user
                 JSONObject resultsObj = new JSONObject();
                 resultsObj.put(query, getQueryRFF(query));
                 System.out.println(resultsObj.toString(4));
 
-                // Write json to file
+                // Write the results to a file so they may be evaluated later
                 FileWriter file = new FileWriter(args.out_path);
                 file.write(resultsObj.toString(4));
                 file.flush();
