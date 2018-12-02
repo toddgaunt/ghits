@@ -14,40 +14,91 @@ import org.json.simple.parser.JSONParser;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 
-/**
- * Class to represent the data of a term. Simplifies building term-doc matrix from Map.
- */
-class Data {
-    double[] postings;
-    int indexID;
-    String term;
-    Data(String t, int nDocs, int docIndex) {
-        term = t;
-        postings = new double[nDocs];
-        increment(docIndex);
-    }
-    void assignIndex(int id) { indexID = id; }
-    void increment(int i) { postings[i]++; }
-    void calcTFIDF() {
-        double docFreq = 0;
-        for (int i = 0; i < postings.length; i++) {
-            if(postings[i] != 0) docFreq++;
-        }
-        double N = postings.length;
-        double idf = Math.log10(N/docFreq);
-        for (int i = 0; i < postings.length; i++) {
-            double tf = postings[i];
-            postings[i] = tf * idf;
-        }
-    }
-}
-
 public class ThesaurusBuilder {
     final public static String[] valid_extensions = {".java", ".c", ".h", ".py"};
+    private static String repoName = "sway-master";
+    private static String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
+    private static int numOfSynonyms = 3;
+    private static boolean normalizeFlag = true;
+    private static TermData[] issueTermArray;
+    private static TermData[] codeTermArray;
+
+    public static void main(String[] args) {
+        try {
+            double[][] coMatrix = buildCoMatrix();
+            System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
+
+            mapSynonyms(coMatrix);
+            issueTermArray[0].printSynonyms();
+            issueTermArray[1].printSynonyms();
+            generateThesaurus("thesaurus.json", false);
+            generateThesaurus("thesaurus-withweights.json", true);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Build the cooccurrence matrix.
+     * @return double[][] cooccurrence matrix
+     * @throws Exception
+     */
+    private static double[][] buildCoMatrix() throws Exception {
+        // Recursively build our list of docs from repo
+        HashMap<String,Document> docList = new HashMap<>();
+        buildDocs(new File(repoName), docList, repoName);
+        System.out.println("Number of docs: " + docList.size());
+
+        ArrayList<Document> issueCodeDocs = new ArrayList<>();
+        buildIssueCodeDocs(docList, issueCodeDocs, trainJson);
+
+        // With all the documents, we build term-document matrix
+        // Each document has an index (or columnID)
+        // Each term has an index (or rowID)
+        // Matrix A dimensions = #tokens X #docs
+        HashMap<String, TermData> issueTerms = new HashMap<>();
+        HashMap<String, TermData> codeTerms = new HashMap<>();
+        double[][] issueTDM = buildTermDocMatrix(issueCodeDocs, issueTerms, true);
+        double[][] codeTDM = buildTermDocMatrix(issueCodeDocs, codeTerms, false);
+        return MatrixUtilities.multiply(issueTDM, MatrixUtilities.transpose(codeTDM));
+    }
+
+    /**
+     * Generate a json thesaurus file from issueTermArray (w1 -> issue+code -> w2).
+     * @param filename
+     * @param includeWeights boolean Include weights for each synonym to view in json file.
+     * @throws Exception
+     */
+    private static void generateThesaurus(String filename, boolean includeWeights) throws Exception{
+        JSONObject map = new JSONObject();
+
+        for (int i = 0; i < issueTermArray.length; i++) {
+            TermData td = issueTermArray[i];
+            JSONArray list = new JSONArray();
+            for (int j = 0; j < numOfSynonyms; j++) {
+                TermWeight tw = td.synonyms.get(j);
+                if(includeWeights) {
+                    JSONObject synonym = new JSONObject();
+                    synonym.put(tw.term, tw.val);
+                    list.add(synonym);
+                }
+                else
+                    list.add(tw.term);
+            }
+            map.put(td.term, list);
+        }
+
+        FileWriter file = new FileWriter(filename);
+        file.write(map.toJSONString());
+        file.flush();
+    }
+
     /**
      * Build a list of Documents from a directory.
      * @param folder
@@ -76,85 +127,12 @@ public class ThesaurusBuilder {
     }
 
     /**
-     * Analyze given text and strip out terms into list.
-     * @param text
-     * @return
-     * @throws IOException
+     * Build documents from issue+code.
+     * @param docList Collection of code documents from repository.
+     * @param issueCodeDocs List to be populated with issue+code Documents.
+     * @param trainJsonFile Path to json file with ground truth data for issue -> files.
+     * @throws Exception
      */
-    public static ArrayList<String> analyze(String text) throws IOException {
-        Analyzer analyzer = new StandardAnalyzer();
-        ArrayList<String> result = new ArrayList<String>();
-        TokenStream tokenStream = analyzer.tokenStream("name", text);
-        CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
-        tokenStream.reset();
-        while(tokenStream.incrementToken()) {
-            result.add(attr.toString());
-        }
-        return result;
-    }
-
-    /**
-     * Build term-doc matrix from a list of documents.
-     * @param docList
-     * @param normalize
-     * @return
-     */
-    private static double[][] buildTermDocMatrix(ArrayList<Document> docList, boolean normalize,
-                                                 boolean termsFromIssue) throws Exception {
-        HashMap<String, Data> termDocs = new HashMap<>();
-        final int numDocs = docList.size(); // number of columns
-
-        // build Map version of a term-doc matrix
-        for(int i = 0; i < docList.size(); i++) {
-            Document d = docList.get(i);
-            ArrayList<String> tokens = new ArrayList();
-
-            if(termsFromIssue)
-                tokens = analyze(d.get("issue"));
-            else
-                tokens = analyze(d.get("code"));
-
-            for (String t : tokens) {
-                Data termData = termDocs.get(t);
-                if (termData == null)
-                    termDocs.put(t, new Data(t, numDocs, i));
-                else
-                    termData.increment(i);
-            }
-        }
-
-        final int numTerms = termDocs.size(); // number of rows
-        double[][] A = new double[numTerms][numDocs]; // initialize 2D matrix
-
-        System.out.println("Number of terms: " + numTerms);
-
-        // copy values
-        int i = 0;
-        for(HashMap.Entry<String, Data> entry : termDocs.entrySet()) {
-            Data data = entry.getValue();
-            data.assignIndex(i); // assign each term an id (row index)
-            if(normalize) data.calcTFIDF(); // compute and assign tf-idf weighting to postings
-            A[data.indexID] = data.postings; // copy term's postings to term-doc matrix
-            i++;
-        }
-        // apply length normalization to each document
-        if(normalize) {
-            for (int j = 0; j < numDocs; j++) {
-                double squaredSum = 0;
-                for (int k = 0; k < numTerms; k++)
-                    squaredSum += A[k][j] * A[k][j];
-
-                double norm = Math.sqrt(squaredSum);
-                if (norm == 0)
-                    continue;
-                for (int k = 0; k < numTerms; k++)
-                    A[k][j] /= norm;
-            }
-        }
-
-        return A;
-    }
-
     private static void buildIssueCodeDocs(HashMap<String,Document> docList,
                                            ArrayList<Document> issueCodeDocs, String trainJsonFile) throws Exception {
         JSONParser parser = new JSONParser();
@@ -181,37 +159,166 @@ public class ThesaurusBuilder {
             }
         }
 
-        System.out.println(issueCodeDocs.size());
-
+        System.out.println("Number of issue+code Documents: " + issueCodeDocs.size());
     }
 
-    public static void main(String[] args) {
-
-        final String repoName = "sway-master";
-        final String trainJson = "bin/train.json"; // path to pull requests (issue paired with files)
-
-        try {
-            // Recursively build our list of docs from repo
-            HashMap<String,Document> docList = new HashMap<>();
-            buildDocs(new File(repoName), docList, repoName);
-            System.out.println("Number of docs: " + docList.size());
-
-            ArrayList<Document> issueCodeDocs = new ArrayList<>();
-            buildIssueCodeDocs(docList, issueCodeDocs, trainJson);
-
-            // With all the documents, we build term-document matrix
-            // Each document has an index (or columnID)
-            // Each term has an index (or rowID)
-            // Matrix A dimensions = #tokens X #docs
-            double[][] issueTDM = buildTermDocMatrix(issueCodeDocs, false, true);
-            double[][] codeTDM = buildTermDocMatrix(issueCodeDocs, false, false);
-
-            double[][] coMatrix = MatrixUtilities.multiply(issueTDM, MatrixUtilities.transpose(codeTDM));
-//            MatrixUtilities.setDiagonal(coMatrix, 0);
-
-            System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
-        } catch (Exception e) {
-            e.printStackTrace();
+    /**
+     * Analyze given text and strip out terms into list.
+     * @param text
+     * @return
+     * @throws IOException
+     */
+    public static ArrayList<String> analyze(String text) throws IOException {
+        Analyzer analyzer = new StandardAnalyzer();
+        ArrayList<String> result = new ArrayList<String>();
+        TokenStream tokenStream = analyzer.tokenStream("name", text);
+        CharTermAttribute attr = tokenStream.addAttribute(CharTermAttribute.class);
+        tokenStream.reset();
+        while(tokenStream.incrementToken()) {
+            result.add(attr.toString());
         }
+        return result;
+    }
+
+    /**
+     * Build term-doc matrix from a list of documents.
+     * @param docList
+     * @param termDataMap
+     * @param termsFromIssue
+     * @return
+     * @throws Exception
+     */
+    private static double[][] buildTermDocMatrix(ArrayList<Document> docList, HashMap<String, TermData> termDataMap,
+                                                 boolean termsFromIssue) throws Exception {
+        final int numDocs = docList.size(); // number of columns
+
+        // build Map version of a term-doc matrix
+        for(int i = 0; i < docList.size(); i++) {
+            Document d = docList.get(i);
+            ArrayList<String> tokens = new ArrayList();
+
+            if(termsFromIssue)
+                tokens = analyze(d.get("issue"));
+            else
+                tokens = analyze(d.get("code"));
+
+            for (String t : tokens) {
+                TermData termData = termDataMap.get(t);
+                if (termData == null)
+                    termDataMap.put(t, new TermData(t, numDocs, i));
+                else
+                    termData.increment(i);
+            }
+        }
+
+        final int numTerms = termDataMap.size(); // number of rows
+        double[][] A = new double[numTerms][numDocs]; // initialize 2D matrix
+
+        System.out.println("Number of terms: " + numTerms);
+        if(termsFromIssue) issueTermArray = new TermData[numTerms];
+        else codeTermArray = new TermData[numTerms];
+        int i = 0;
+        for(HashMap.Entry<String, TermData> entry : termDataMap.entrySet()) {
+            TermData data = entry.getValue();
+            data.assignIndex(i); // assign each term an id (row index)
+            if(normalizeFlag) data.calcTFIDF(); // compute and assign tf-idf weighting to postings
+            if(termsFromIssue) issueTermArray[i] = data;
+            else codeTermArray[i] = data;
+            A[data.indexID] = data.postings; // copy term's postings to term-doc matrix
+            i++;
+        }
+
+        // apply length normalization to each document
+        if(normalizeFlag) {
+            for (int j = 0; j < numDocs; j++) {
+                double squaredSum = 0;
+                for (int k = 0; k < numTerms; k++)
+                    squaredSum += A[k][j] * A[k][j];
+
+                double norm = Math.sqrt(squaredSum);
+                if (norm == 0)
+                    continue;
+                for (int k = 0; k < numTerms; k++)
+                    A[k][j] /= norm;
+            }
+        }
+
+        return A;
+    }
+
+    /**
+     * Map synonyms using coMatrix.
+     * @param coMatrix
+     */
+    private static void mapSynonyms(double[][] coMatrix) {
+        int numIssueTerms = coMatrix.length;
+        int numCodeTerms = coMatrix[0].length;
+
+        for (int i = 0; i < numIssueTerms; i++) {
+            PriorityQueue<TermWeight> termWeights = new PriorityQueue<>();
+            TermData issueTermData = issueTermArray[i];
+
+            for (int j = 0; j < numCodeTerms; j++)
+                termWeights.add(new TermWeight(codeTermArray[j].term, coMatrix[i][j]));
+
+            for (int j = 0; j < numOfSynonyms; j++)
+                issueTermData.synonyms.add(termWeights.poll());
+        }
+    }
+}
+
+/**
+ * Class to represent the data of a term. Simplifies building term-doc matrix from Map.
+ */
+class TermData {
+    double[] postings;
+    ArrayList<TermWeight> synonyms;
+    int indexID;
+    String term;
+    TermData(String t, int nDocs, int docIndex) {
+        term = t;
+        postings = new double[nDocs];
+        synonyms = new ArrayList<>();
+        increment(docIndex);
+    }
+    void assignIndex(int id) { indexID = id; }
+    void increment(int i) { postings[i]++; }
+    void calcTFIDF() {
+        double docFreq = 0;
+        for (int i = 0; i < postings.length; i++) {
+            if(postings[i] != 0) docFreq++;
+        }
+        double N = postings.length;
+        double idf = Math.log10(N/docFreq);
+        for (int i = 0; i < postings.length; i++) {
+            double tf = postings[i];
+            postings[i] = tf * idf;
+        }
+    }
+    void printSynonyms() {
+        String str = "Synonyms for " + term + '\n';
+        for (int i = 0; i < synonyms.size(); i++)
+            str += synonyms.get(i).term + " : " + synonyms.get(i).val + '\n';
+        System.out.println(str);
+    }
+}
+
+/**
+ * Class to represent a term with its weight.
+ */
+class TermWeight implements Comparable<TermWeight> {
+    double val;
+    String term;
+    public TermWeight(String t, double v) {
+        term = t;
+        val = v;
+    }
+    @Override
+    public int compareTo(TermWeight other) {
+        if(val > other.val)
+            return -1;
+        else if(val < other.val)
+            return 1;
+        return 0;
     }
 }
