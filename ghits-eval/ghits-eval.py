@@ -4,8 +4,16 @@ import argparse
 import json
 import pexpect
 import pytrec_eval
-from collections import OrderedDict
 
+# argument parsing
+a = argparse.ArgumentParser(
+    description='evaluates the ghits tool, given a file with the truth data and a specific measure')
+# a.add_argument("-d", help="enable debug prinouts", default=False)
+a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
+a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
+a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
+a.add_argument("-m", help='<map | P@R | F1>', default="MAP", dest="method")
+arguments = a.parse_args()
 
 # def t_output_reader(proc, outq):
 #     for line in iter(proc.stdout.readline, ""):
@@ -24,9 +32,16 @@ def normalize(s):
     return s.replace("\r\n", " ")
 
 
-def normalize_queries(obj):
+def normalize_queries(obj, repo_dir, replacePath=False):
     temp = {}
-    for query, items in obj.items():
+    for query, files in obj.items():
+        items = {}
+        if replacePath:
+            for i, k in files.items():
+                q = i.replace("a/", repo_dir+"/")
+                items[q] = k
+        else:
+            items = files
         temp[normalize(query)] = items
     return temp
 
@@ -36,15 +51,6 @@ def order(obj):
 
 
 def main():
-    # argument parsing
-    a = argparse.ArgumentParser(
-        description='evaluates the ghits tool, given a file with the truth data and a specific measure')
-    # a.add_argument("-d", help="enable debug prinouts", default=False)
-    a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
-    a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
-    a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
-    a.add_argument("-m", help='<map | P@R | F1>', default="MAP", dest="method")
-    arguments = a.parse_args()
 
     tool_dir = arguments.tool_path
     test_file = arguments.rel_file
@@ -76,12 +82,12 @@ def main():
 
     print("Evaluating...")
 
-    rel_data = normalize_queries(rel_data)
+    rel_data = normalize_queries(rel_data, repo_dir, True)
 
     results_file = json.load(open(tool_dir+"output.json"))
 
-    # print(order(rel_data))
-    # print(order(results_file))
+    # print(json.dumps(order(rel_data), indent=4))
+    # print(json.dumps(order(results_file), indent=4))
 
     evaluator = pytrec_eval.RelevanceEvaluator(order(rel_data), {'map', 'ndcg'})
     print(json.dumps(evaluator.evaluate(order(results_file)), indent=4))
