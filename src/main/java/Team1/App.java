@@ -142,7 +142,11 @@ public class App
         String expandedQuery = "";
         for(String term : termsInQuery) {
             Object obj = map.get(term);
-            if(obj == null) continue;
+
+            if(obj == null) { // if term not in map, just add back to query and skip
+                expandedQuery += term + ' ';
+                continue;
+            }
 
             JSONArray synonyms = (JSONArray) obj;
             System.out.println(synonyms.toString());
