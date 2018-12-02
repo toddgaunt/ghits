@@ -9,8 +9,8 @@ import pytrec_eval
 a = argparse.ArgumentParser(
     description='evaluates the ghits tool, given a file with the truth data and a specific measure')
 # a.add_argument("-d", help="enable debug prinouts", default=False)
-a.add_argument("-p", help='path to tool makefile', default="../", dest="tool_path")
-a.add_argument("-r", help="path to repo source", default="TestRepo", dest="repo_path")
+a.add_argument("-p", help='relative path to tool makefile', default="../", dest="tool_path")
+a.add_argument("-r", help="name of repo relative to makefile", default="TestRepo", dest="repo_path")
 a.add_argument("-t", help='path of file with list of relevant repos for each query', dest="rel_file", required=True)
 a.add_argument("-m", help='<map | P@R | F1>', default="MAP", dest="method")
 arguments = a.parse_args()
