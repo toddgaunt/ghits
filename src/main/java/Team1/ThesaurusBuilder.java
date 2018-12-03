@@ -33,9 +33,12 @@ public class ThesaurusBuilder {
     private static TermData[] codeTermArray;
 
     public static void main(String[] args) {
-        if(args.length == 1) // usage: thesaurus <train.json>
-            trainJson = args[0];
-
+        if(args.length != 2) {
+        	System.out.println("usage: thesaurus <path/to/test.json> <path/to/repository>");
+        	System.exit(-1);
+        }
+        trainJson = args[0];
+        repoName = args[1];
         try {
             double[][] coMatrix = buildCoMatrix();
             System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);

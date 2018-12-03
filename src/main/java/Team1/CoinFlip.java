@@ -135,7 +135,7 @@ public class CoinFlip
 			GithubPullRequest[] pr = read_training_set(args[0]);
 			Map<String, List<String>> map = train(pr, args[1]);
 			JSONObject mapping = new JSONObject(map);
-			write_mapping(mapping, "coinflip_mapping.json");
+			write_mapping(mapping, "coinflip_mappings.json");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
