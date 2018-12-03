@@ -41,8 +41,7 @@ public class ThesaurusBuilder {
             System.out.println("Co-occurrence Matrix: " + coMatrix.length + " X " + coMatrix[0].length);
 
             mapSynonyms(coMatrix);
-//            issueTermArray[0].printSynonyms();
-//            issueTermArray[1].printSynonyms();
+
             generateThesaurus("thesaurus.json", false);
             generateThesaurus("thesaurus-withweights.json", true);
             System.out.println("thesaurus.json was built successfully!");
@@ -73,6 +72,7 @@ public class ThesaurusBuilder {
         HashMap<String, TermData> codeTerms = new HashMap<>();
         double[][] issueTDM = buildTermDocMatrix(issueCodeDocs, issueTerms, true);
         double[][] codeTDM = buildTermDocMatrix(issueCodeDocs, codeTerms, false);
+        System.out.println("Calculating cooccurrence matrix. This may take a few minutes...");
         return MatrixUtilities.multiply(issueTDM, MatrixUtilities.transpose(codeTDM));
     }
 
@@ -88,8 +88,8 @@ public class ThesaurusBuilder {
             if (entry.isDirectory())
                 buildDocs(entry, docList, rootName);
             else if (extentions.contains(FilenameUtils.getExtension(filename))) {
-                String path = folder.getPath().substring(rootName.length()).replace('\\', '/') + "/";
-                String name = "a" + path + filename;
+                String path = entry.toString().replace('\\', '/');
+                String name = path.substring(rootName.length()+1);
                 String fileContent = new String(Files.readAllBytes(entry.toPath()));
                 if (fileContent.length() == 0) continue;
                 Document doc = new Document();
