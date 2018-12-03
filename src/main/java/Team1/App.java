@@ -225,7 +225,7 @@ public class App
             case "bnn.bnn":
                 return TFIDF.BnnBnnSim();
             case "anc.apc":
-                return TFIDF.BnnBnnSim();
+                return TFIDF.AnnApnSim();
             case "U-L":
                 return LM.U_L();
             case "U-JM":
