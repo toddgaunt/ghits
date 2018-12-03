@@ -256,7 +256,10 @@ public class App
 					System.out.println("Unable to open mappings file, proceeding without query expansion");
 				}
 			}
+			
+			JSONObject resultsObj = new JSONObject();
 			String query = queryPrompt();
+			
 			// Begin the main interactive loop to ask the user for queries to search on
             while (!query.equals("q") && !query.equals("Q")) {
                 String originalQuery = query;
@@ -273,16 +276,15 @@ public class App
                 Similarity similarity = getSimilarity(args.sim);
                 
                 // Run rankings retrieval, store as json, and output results to user
-                JSONObject resultsObj = new JSONObject();
                 resultsObj.put(originalQuery, getQueryRFF(query, similarity));
                 System.out.println(resultsObj.toString(4));
-
-                // Write the results to a file so they may be evaluated later
-                FileWriter file = new FileWriter(args.out_path);
-                file.write(resultsObj.toString(4));
-                file.flush();
+               
                 query = queryPrompt();
             }
+            // Write the results to a file so they may be evaluated later
+            FileWriter file = new FileWriter(args.out_path);
+            file.write(resultsObj.toString(4));
+            file.flush();
         } catch (Exception e) {
             e.printStackTrace();
         }
