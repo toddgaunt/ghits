@@ -41,9 +41,17 @@ public class Indexer {
     public static void indexProject(File folder, IndexWriter indexWriter) throws Exception {
     	for (File entry : folder.listFiles()) {
             if (entry.isDirectory()) {
-                indexProject(entry, indexWriter);
+            	indexProject(entry, indexWriter);
             } else {
-            	final String name = folder.getPath() + "/" + entry.getName();
+            	String name = folder.getPath() + "/" + entry.getName();
+            	// Remove the top-level folder
+            	int i;
+            	for (i = 0; i < name.length(); ++i) {
+            		if (name.charAt(i) == '/') {
+            			break;
+            		}
+            	}	
+            	name = name.substring(i + 1, name.length());
             	for (String ext : valid_extensions) {
             		if (name.endsWith(ext)) {
             			System.out.println(name);
