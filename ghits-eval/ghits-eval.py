@@ -116,7 +116,7 @@ def main():
     elif method == 'thesaurus':
         print("Building Team1.ThesaurusBuilder...")
         print("Running thesaurus...")
-        proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.jon\"', cwd=tool_dir)
+        proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.jo {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
         proc.wait()
         if proc.isalive():
             print("thesaurus did not exit gracefully.")
