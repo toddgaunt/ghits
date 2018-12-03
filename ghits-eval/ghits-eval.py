@@ -35,14 +35,14 @@ def normalize(s):
 def normalize_queries(obj, repo_dir, replacePath=False):
     temp = {}
     for query, files in obj.items():
-        items = {}
-        if replacePath:
-            for i, k in files.items():
-                q = i.replace("a/", repo_dir+"/")
-                items[q] = k
-        else:
-            items = files
-        temp[normalize(query)] = items
+        # items = {}
+        # if replacePath:
+        #     for i, k in files.items():
+        #         q = i.replace("a/", repo_dir+"/")
+        #         items[q] = k
+        # else:
+        #     items = files
+        temp[normalize(query)] = files
     return temp
 
 
@@ -58,23 +58,23 @@ def main():
     rel_data = json.load(open(arguments.rel_file))
     prompt = "Enter a query >> "
 
-    print("Building index...")
-    proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
-    proc.wait()
-    if proc.isalive():
-        print("index did not exit gracefully.")
-        proc.close()
-    else:
-        print("Exiting index.")
+    # print("Building index...")
+    # proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
+    # proc.wait()
+    # if proc.isalive():
+    #     print("index did not exit gracefully.")
+    #     proc.close()
+    # else:
+    #     print("Exiting index.")
 
     if method == 'tf':
         print("Building Team1.app...")
         proc = pexpect.spawnu('make run', cwd=tool_dir)
         proc.expect(prompt)
-        # print(proc.before)
+        print(proc.before)
         for query, files in rel_data.items():
             proc.sendline(normalize(query))
-            # print(proc.before + proc.after)
+            print(proc.before + proc.after)
             proc.expect(prompt)
         if proc.isalive():
             proc.sendline("q")
@@ -144,12 +144,10 @@ def main():
             print("Exiting team1.app.")
 
 
-
     print("Evaluating results...")
-
     rel_data = normalize_queries(rel_data, repo_dir, True)
 
-    results_file = json.load(open(tool_dir+"output.json"))
+    results_file = json.load(open(tool_dir+"ghits_output.json"))
 
     # print(json.dumps(order(rel_data), indent=4))
     # print(json.dumps(order(results_file), indent=4))
