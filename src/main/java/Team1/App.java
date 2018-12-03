@@ -208,7 +208,7 @@ public class App
             System.out.flush();
             query = reader.nextLine();
         }
-        return normalize_query(query);
+        return query;
     }
 
     /**
@@ -263,6 +263,7 @@ public class App
 			// Begin the main interactive loop to ask the user for queries to search on
             while (!query.equals("q") && !query.equals("Q")) {
                 String originalQuery = query;
+                query = normalize_query(query);
                 if (args.debug)
                     System.out.println("Original Query: " + query);
                 // If a mappings file was provided, use it to expand the query
