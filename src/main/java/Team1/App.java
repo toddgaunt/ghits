@@ -253,7 +253,8 @@ public class App
 					mapping = read_mappings(args.mapping_path);
 				} catch (Exception e) {
 					mapping = null;
-					System.out.println("Unable to open mappings file, proceeding without query expansion");
+					System.out.println("Unable to open mappings file, terminating");
+					System.exit(-1);
 				}
 			}
 			
