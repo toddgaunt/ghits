@@ -8,6 +8,7 @@ import pytrec_eval
 # argument parsing
 a = argparse.ArgumentParser(
     description='evaluates the ghits tool, given a file with the truth data and a specific measure')
+a.add_argument("-a", help="enable automation", default=False, action='store_true', dest='auto')
 # a.add_argument("-d", help="enable debug prinouts", default=False)
 a.add_argument("-p", help='relative path to tool makefile', default="../", dest="tool_path")
 a.add_argument("-r", help="name of repo relative to makefile", default="TestRepo", dest="repo_path")
@@ -57,18 +58,20 @@ def main():
     method = arguments.method
     rel_data = json.load(open(arguments.rel_file))
     prompt = "Enter a query >> "
+    auto = arguments.auto
 
-    # print("Building index...")
-    # proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
-    # proc.wait()
-    # if proc.isalive():
-    #     print("index did not exit gracefully.")
-    #     proc.close()
-    # else:
-    #     print("Exiting index.")
+    if auto:
+        print("Building index...")
+        proc = pexpect.spawnu('make index ARGS={repo}'.format(repo=repo_dir), cwd=tool_dir)
+        proc.wait()
+        if proc.isalive():
+            print("index did not exit gracefully.")
+            proc.close()
+        else:
+            print("Exiting index.")
 
     if method == 'tf':
-        print("Building Team1.app...")
+        print("Running Team1.app...")
         proc = pexpect.spawnu('make run', cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
@@ -85,17 +88,17 @@ def main():
         else:
             print("Exiting tool.")
     elif method == 'coinflip':
-        print("Building Team1.CoinFlip...")
-        print("Running coinflip...")
-        proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
-        proc.wait()
-        if proc.isalive():
-            print("coinflip did not exit gracefully.")
-            proc.close(force=True)
-        else:
-            print("Coinflip done.")
+        if auto:
+            print("Building Team1.CoinFlip...")
+            proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
+            proc.wait()
+            if proc.isalive():
+                print("coinflip did not exit gracefully.")
+                proc.close(force=True)
+            else:
+                print("Coinflip done.")
 
-        print("Building Team1.App using coinflip_mappings.json")
+        print("Running Team1.App using coinflip mappings")
         proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
@@ -114,18 +117,19 @@ def main():
         else:
             print("Exiting team1.app.")
     elif method == 'thesaurus':
-        print("Building Team1.ThesaurusBuilder...")
-        print("Running thesaurus...")
-        proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
-        proc.wait()
-        if proc.isalive():
-            print("thesaurus did not exit gracefully.")
-            proc.close(force=True)
-        else:
-            print("Thesaurus done.")
+        if auto:
+            print("Building Team1.ThesaurusBuilder...")
+            print("Running thesaurus...")
+            proc = pexpect.spawnu('make thesaurus ARGS=\"bin/train.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
+            proc.wait()
+            if proc.isalive():
+                print("thesaurus did not exit gracefully.")
+                proc.close(force=True)
+            else:
+                print("Thesaurus done.")
 
-        print("Building Team1.App using thesaurus")
-        proc = pexpect.spawnu('make run ARGS=\"thesaurus.json \"', cwd=tool_dir)
+        print("Building Team1.App using thesaurus mapping")
+        proc = pexpect.spawnu('make run ARGS=\" -m thesaurus.json \"', cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
 
