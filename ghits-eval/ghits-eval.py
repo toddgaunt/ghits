@@ -71,10 +71,10 @@ def main():
         print("Building Team1.app...")
         proc = pexpect.spawnu('make run', cwd=tool_dir)
         proc.expect(prompt)
-        print(proc.before)
+        #print(proc.before)
         for query, files in rel_data.items():
             proc.sendline(normalize(query))
-            print(proc.before + proc.after)
+            #print(proc.before + proc.after)
             proc.expect(prompt)
         if proc.isalive():
             proc.sendline("q")
@@ -87,7 +87,7 @@ def main():
     elif method == 'coinflip':
         print("Building Team1.CoinFlip...")
         print("Running coinflip...")
-        proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon\"', cwd=tool_dir)
+        proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
         proc.wait()
         if proc.isalive():
             print("coinflip did not exit gracefully.")
@@ -96,7 +96,7 @@ def main():
             print("Coinflip done.")
 
         print("Building Team1.App using coinflip_mappings.json")
-        proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json\"', cwd=tool_dir)
+        proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
 
@@ -125,7 +125,7 @@ def main():
             print("Thesaurus done.")
 
         print("Building Team1.App using thesaurus")
-        proc = pexpect.spawnu('make run ARGS=\"thesaurus.json\"', cwd=tool_dir)
+        proc = pexpect.spawnu('make run ARGS=\"thesaurus.json \"', cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
 
