@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import org.apache.lucene.search.similarities.LMSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.json.*;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -23,13 +25,13 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 
 class Args {
-    String mapping_path;
-    String out_path;
+    String mapping_path, out_path, sim;
     boolean debug;
-    public Args(String mapPath, String outPath, boolean debugFlag) {
+    public Args(String mapPath, String outPath, boolean debugFlag, String similarity) {
         mapping_path = mapPath;
         out_path = outPath;
         debug = debugFlag;
+        sim = similarity;
     }
 }
 
@@ -42,10 +44,11 @@ public class App
      */
     public static void usage()
     {
-        System.out.println("usage: ghits [-d] [-m <mapping_path>] [-o <out_path>] ");
+        System.out.println("usage: ghits [-d] [-m <mapping_path>] [-o <out_path>] [-s <similarity variant>]");
         System.out.println("    -d    Set the debug flag to enable extra print-outs to stdout");
         System.out.println("    -m    Specify the json file that provides a query expansion mapping");
         System.out.println("    -o    Specify the path to the output file the program writes json rankings to");
+        System.out.println("    -s    Specify the similarity variant (e.g. ''lnn.bnn''");
         System.exit(-1);
     }
 
@@ -55,9 +58,12 @@ public class App
      * @return String with our compiled search results.
      * @throws Exception
      */
-    public static JSONObject getQueryRFF(String query) throws Exception {
+    public static JSONObject getQueryRFF(String query, Similarity sim) throws Exception {
         File index = new File("index");
         IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(index.toPath())));
+
+        if(sim != null)
+            indexSearcher.setSimilarity(sim);
 
         QueryParser parser = new QueryParser("content", new StandardAnalyzer());
         TopDocs results;
@@ -82,7 +88,7 @@ public class App
     public static Args parse_args(String[] args) {
     	// Default arguments
     	String outPath = "ghits_output.json";
-    	String mapPath = null;
+    	String mapPath = null, similarity = null;
     	boolean debug = false;
 
         char[][] argv = new char[args.length][0];
@@ -118,6 +124,10 @@ public class App
                     		if (null == opt_arg) usage();
                             mapPath = opt_arg;
                     		break;
+                    case 's':
+                    		if (null == opt_arg) usage();
+                            similarity = opt_arg;
+                    		break;
                     case 'd':
                     		debug = true;
                     		break;
@@ -129,7 +139,7 @@ public class App
 				//TODO(todd): required arguments go here
 			}
 		}
-    	return new Args(mapPath, outPath, debug);
+    	return new Args(mapPath, outPath, debug, similarity);
     }
     
     public static JSONObject read_mappings(String mappings_path) throws Exception {
@@ -161,7 +171,7 @@ public class App
     /**
      * Expand query using a mapping json.
      * @param mapping
-     * @param query
+     * @param queryTerms
      * @return
      * @throws Exception
      */
@@ -202,6 +212,32 @@ public class App
     }
 
     /**
+     * Return instance of specified similarity.
+     * @param sim String
+     * @return Similarity
+     * @throws Exception
+     */
+    public static Similarity getSimilarity(String sim) throws Exception {
+        if(sim == null) return null;
+        switch (sim) {
+            case "lnc.ltn":
+                return TFIDF.LncLtnSim();
+            case "bnn.bnn":
+                return TFIDF.BnnBnnSim();
+            case "anc.apc":
+                return TFIDF.BnnBnnSim();
+            case "U-L":
+                return LM.U_L();
+            case "U-JM":
+                return LM.U_JM();
+            case "U-DS":
+                return LM.U_DS();
+            default:
+                throw new Exception("Invalid similarity");
+        }
+    }
+
+    /**
      * Main.
      * @param argsv String[]
      */
@@ -223,6 +259,7 @@ public class App
 			String query = queryPrompt();
 			// Begin the main interactive loop to ask the user for queries to search on
             while (!query.equals("q") && !query.equals("Q")) {
+                String originalQuery = query;
                 if (args.debug)
                     System.out.println("Original Query: " + query);
                 // If a mappings file was provided, use it to expand the query
@@ -232,10 +269,12 @@ public class App
                 		System.out.println("Expanded Query: " + query);
                 
                 }
+
+                Similarity similarity = getSimilarity(args.sim);
                 
                 // Run rankings retrieval, store as json, and output results to user
                 JSONObject resultsObj = new JSONObject();
-                resultsObj.put(query, getQueryRFF(query));
+                resultsObj.put(originalQuery, getQueryRFF(query, similarity));
                 System.out.println(resultsObj.toString(4));
 
                 // Write the results to a file so they may be evaluated later

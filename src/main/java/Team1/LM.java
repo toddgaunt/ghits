@@ -4,7 +4,7 @@ import org.apache.lucene.search.similarities.BasicStats;
 import org.apache.lucene.search.similarities.LMSimilarity;
 
 public class LM {
-	public static LMSimilarity U_L(final long number_of_terms) {
+	public static LMSimilarity U_L() {
 		return new LMSimilarity() {
 			@Override
 			public String getName() {
@@ -14,7 +14,7 @@ public class LM {
 			@Override
 			protected float score(BasicStats stats, float freq, float docLen) {
 				long tf = stats.getTotalTermFreq();
-				return (freq + 1) / (tf + number_of_terms);
+				return (freq + 1) / (tf + stats.getNumberOfFieldTokens());
 			}
 		};
 	}
