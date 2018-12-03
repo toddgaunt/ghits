@@ -90,7 +90,7 @@ def main():
     elif method == 'coinflip':
         if auto:
             print("Building Team1.CoinFlip...")
-            proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.jon {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
+            proc = pexpect.spawnu('make coinflip ARGS=\"bin/train.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
             proc.wait()
             if proc.isalive():
                 print("coinflip did not exit gracefully.")
@@ -99,7 +99,7 @@ def main():
                 print("Coinflip done.")
 
         print("Running Team1.App using coinflip mappings")
-        proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json {repo}\"'.format(repo=repo_dir), cwd=tool_dir)
+        proc = pexpect.spawnu('make run ARGS=\"-m coinflip_mappings.json\"', cwd=tool_dir)
         proc.expect(prompt)
         #print(proc.before)
 
