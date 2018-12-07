@@ -8,7 +8,7 @@
 
 \begin{document}
 \begin{center}
-  {\huge\bfseries Specification of the C2 Programming Language\par}
+  {\huge\bfseries Github Issue Tracker Searcher\par}
   \vspace{1cm}
   {\Large\itshape Andrew Lewis, Francisco Santana, Todd Gaunt\par}
   \vspace{0.5cm}
@@ -96,9 +96,24 @@ A possible reason to explain the coin flip model’s performance could be that b
 
 \section{Conclusion and Future Work}
 
-Coinflip good! Thesaurus Co-occurrence expansion sad...
+The best model found for query expansion was the custom "coin flip" method described in
+this paper, although they all ranked lower than desired on all metrics due to the difficulty
+in translating plain english to code without looking at semantics or intent of the text.
 
-Use learning to rank with TF-IDF and LM models and see how it can be improved with the Thesaurus and coin flip method. Coin flip can also be modified to bias the translation assignment to favor long, unique words. This way, whenever certain keywords appear in a query, they are likely mapped to terms that appear in only a few specific files. This is postulated to improve the results of coin flip drastically since it is an unbiased random assignment currently.
+For future project expansions on this work, it would be nice to see learning to
+rank with TF-IDF and LM models and see how it can be improved with the Thesaurus
+and coin flip method.
+
+Coin flip can also be modified to bias the translation assignment to favor
+long, unique words in the translation mapping between the query language and the
+document language, rather than just completely at random. This way, whenever
+certain keywords appear in a query, they are likely mapped to terms that appear
+in only a few specific files. This is postulated to improve the results of coin
+flip drastically since it is an unbiased random assignment currently. Along
+these same lines, small words or words that are frequent across all documents
+such as "was", "fix", "change", etc... could be left out of the translation
+since they would not be good indicatators of relevancy, since certain terms can
+appear in any pull request and thus have no meaning.
 
 \section{Contributions}
 
