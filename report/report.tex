@@ -47,8 +47,13 @@ Term frequency-inverse document frequency (TF-IDF) is a standard information ret
 
 In attempt to solve the gap between natural language and code, a global query expansion method was chosen. This method is called automatic thesaurus generation. The main idea is to index a training set of data into a term-document matrix, and find the co-occurrences between all the terms. To do this, the term-document matrix is multiplied with the transpose of itself, resulting in a matrix of similarity weights that correspond between every term in the training set. Using these similarity scores, a thesaurus (mappings) is built containing all the terms and the synonyms they co-occur with. 
 
+\begin{center}
     $A = term-document matrix$
+\end{center}
+
+\begin{center}
     $C = A*AT = co-occurrence matrix$
+\end{center}
 
 In the context of our task definition, this thesaurus generation was done slightly differently. We treated a Document as a single issue-code pairing from the training set. The first term-document matrix AI is built by issue terms -> issue-code documents, and the second term-document matrix AC is built by code terms -> issue-code documents. Applying ltc tf-idf weighting to both the matrices, then performing AI*ACT gave us the co-occurrence matrix C of issue terms to code terms. A threshold of 0.05 or a max of three synonyms was used to create the mappings.
 
@@ -85,9 +90,9 @@ Our data set consists of Github pull requests from the “Sway Window manager”
 
 We compare Lucene’s default BM25, TF-IDF variant lnc.ltn, laplace smoothing, and our query expansion methods using MAP, NDCG, and Precision@R as our evaluation measures. The results are shown below in the graph and table. 
 
-The methods did not achieve the results we expected, and overall underperformed such that the tool itself may not be helpful. The results are, however, quite good compared to just returning random results.  There were some notable differences between some of the methods, specifically the query expansion methods. The best method was the “coinflip” algorithm that utilized random assignment during the thesaurus building. The baseline method, BM25 (Lucene’s default) performed okay for each metric for an untuned search method. Unfortunately, the global thesaurus generation method performed the worse than expected, worse than BM25 on all metrics.
+The methods did not achieve the results we expected, and overall underperformed such that the tool itself may not be helpful. An important note to be made is that our system only indexed four file types, when groud truth we evaulated against contained other filetypes. The results are, however, quite good compared to just returning random results. There were some notable differences between some of the methods, specifically the query expansion methods. The best method was the “coinflip” algorithm that utilized random assignment during the thesaurus building. The baseline method, BM25 (Lucene’s default) performed okay for each metric for an untuned search method. Unfortunately, the global thesaurus generation method performed the worse than expected, worse than BM25 on all metrics.
 
-The challenge to bridge the gap between English plain text and code explains the generally low scores. Using the global thesaurus generation made sense intuitively, but came with its own difficulties: how the source code files are to be tokenized, and how is the threshold set for selected synonyms of a issue term. Maybe the use of bigrams or trigrams with issue and/or code terms could be a potential improvement. The downside to query expansion though is that it introduces many false positives due to altering the initial query, which could quite plainly just be injecting noise/junk into the semantics of the query.
+The challenge to bridge the gap between English plain text and code explains the generally low scores. Using the global thesaurus generation made sense intuitively, but came with its own difficulties: how the source code files are to be tokenized, and how is the threshold set for selected synonyms of a issue term. The use of custom analyzers for different files types may alleviate much of the tokenizing issues, and maybe the use of bigrams or trigrams with issue and/or code terms could be a potential improvement. Finding a more accurate way of selecting synonyms from the co-occurrence matrix, and filtering known false synonyms would also be an improvement. The downside to query expansion though is that it introduces many false positives due to altering the initial query, which could quite plainly just be injecting noise/junk into the semantics of the query.
 
 \includegraphics[height=10in]{graph.png}
 
@@ -117,8 +122,10 @@ appear in any pull request and thus have no meaning.
 
 \section{Contributions}
 
-Andrew: Thesaurus extraction method
-Todd: Github issue web scraper, CoinFlip probabilistic query expansion method
-Francisco: Evaluation tool, custom TF-IDF and LM feature classes
+\begin{itemize}
+  \item Andrew: Thesaurus extraction method
+  \item Todd: Github issue web scraper, CoinFlip probabilistic query expansion method
+  \item Francisco: Evaluation tool, custom TF-IDF and LM feature classes
+\end{itemize}
 
 \end{document}
