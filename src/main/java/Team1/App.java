@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.json.*;
@@ -232,6 +233,8 @@ public class App
                 return LM.U_JM();
             case "U-DS":
                 return LM.U_DS();
+            case "default":
+                return new BM25Similarity();
             default:
                 throw new Exception("Invalid similarity");
         }
