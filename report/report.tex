@@ -1,6 +1,7 @@
 \documentclass[10pt,a4paper]{article}
 \usepackage[top=1in, left=1in, right=1in, bottom=1.5in]{geometry}
 \usepackage{titlesec}
+\usepackage{graphicx}
 
 % Custom LaTeX macros used throughout the document
 \input{macro.tex}
@@ -15,6 +16,7 @@
 \end{center}
 
 \section{Introduction}
+
 Issue trackers are a commonly used tool along side version control systems such
 as git or svn. The tools allow for users or developers to submit a feature
 request, bug fix, or even just a question and have it be responded to, resolved,
@@ -32,23 +34,51 @@ issue tracking system, and it is a well-featured issue-tracker at that. Since
 github has many users, and many projects that utilize its issue tracker, GHITS
 was developed to take advantage of this to provide a file searcher for
 issue tracking described here.
+
 \section{Related Work}
-%TODO(todd): Summarize each algorithm implemented
-%TODO(todd): Summarize all other work
+
+There is no specific work we refer to, other than the Information Retrieval methods we learned in the CS 753 class. The query expansion methods that are described later were graciously provided by Professor Dietz, and also involved some custom work in the case of the coinflip model
+
 \section{Approach}
-%TODO(todd): What are the methods?
-%TODO(todd): Short code / algorithm descriptions?
-%TODO(todd): How are methods being combined?
+
+The methods we implemented are TF-IDF variants, language models, and query expansion models. A method for future implementation is a feature-based ranking model using TF-IDF and LM as features and using training data to find the best weighting. The two models of query expansion were a random “coinflip” method to translate from the query language to the source language, and a thesaurus extraction method.
+  
+Term frequency-inverse document frequency (TF-IDF) is a standard information retrieval method that tries to solve some of the issues that arise when indexing files. Its use is to adjust the weighting of terms according to intuitions about the rarity of a term and the document length. The implementation of TF-IDF in Lucene requires creating a new instance of TFIDFSimilarity, overriding its functions to fit the desired variation, then passing it to the IndexSearcher. In our system, three variations are implemented: lnt.ltn, ann.apn, and bnn.bnn.
+
+In attempt to solve the gap between natural language and code, a global query expansion method was chosen. This method is called automatic thesaurus generation. The main idea is to index a training set of data into a term-document matrix, and find the co-occurrences between all the terms. To do this, the term-document matrix is multiplied with the transpose of itself, resulting in a matrix of similarity weights that correspond between every term in the training set. Using these similarity scores, a thesaurus (mappings) is built containing all the terms and the synonyms they co-occur with. 
+
+    $A = term-document matrix$
+    $C = A*AT = co-occurrence matrix$
+
+In the context of our task definition, this thesaurus generation was done slightly differently. We treated a Document as a single issue-code pairing from the training set. The first term-document matrix AI is built by issue terms -> issue-code documents, and the second term-document matrix AC is built by code terms -> issue-code documents. Applying ltc tf-idf weighting to both the matrices, then performing AI*ACT gave us the co-occurrence matrix C of issue terms to code terms. A threshold of 0.05 or a max of three synonyms was used to create the mappings.
+
+The coinflip model of query expansion is a rather simple algorithm, and is surprisingly performant. Essentially, for every query in the training set there is a set of files associated with the query that are considered relevant. The coinflip model then takes every word in a query and assigns it a replacement word from the set of relevant documents at random. This was not expected to perform as well as it did, and was originally only a temporary method in order to test the code implementing the algorithm. It turned out to outperform Thesaurus Generation and TF-IDF in all performance metrics.
+
 \section{Evaluation}
-%TODO(todd): Describe evaluation paradigm: data set, corpus, queries, ground truth
-%TODO(todd): Which methods are being compared?
-%TODO(todd): Which evaluation measures are being used?
-%TODO(todd): Results?
-%TODO(todd): Plots and Tables?
-%TODO(todd): Which methods worked the best/worst?
-%TODO(todd): Errors?
-%TODO(todd): Statistical significance?
+
+Our data set consists of Github pull requests from the “Sway Window manager” Github repo. A Python script was made to make calls to the Github API to scrape the title+description and file diff list from 1000 Github issues. This data was split into a training set and a testing set, serving as our ground truth for training and evaluation. The corpus that was indexed was the source code from the “Sway window manager” Github repository found here: https://github.com/swaywm/sway. Given a query—that is, text representing a Github issue—GHITS performs a search on the indexed corpus and returns a ranked list of relevant files.
+
+We compare Lucene’s default BM25, TF-IDF variant lnc.ltn, laplace smoothing, and our query expansion methods using MAP, NDCG, and Precision@R as our evaluation measures. The results are shown below in the graph and table. 
+
+The methods did not achieve the results we expected, and overall underperformed such that the tool itself may not be helpful. The results are, however, quite good compared to just returning random results.  There were some notable differences between some of the methods, specifically the query expansion methods. The best method was the “coinflip” algorithm that utilized random assignment during the thesaurus building. The baseline method, BM25 (Lucene’s default) performed okay for each metric for an untuned search method. Unfortunately, the global thesaurus generation method performed the worse than expected, worse than BM25 on all metrics.
+
+The challenge to bridge the gap between English plain text and code explains the generally low scores. Using the global thesaurus generation made sense intuitively, but came with its own difficulties: how the source code files are to be tokenized, and how is the threshold set for selected synonyms of a issue term. Maybe the use of bigrams or trigrams with issue and/or code terms could be a potential improvement. The downside to query expansion though is that it introduces many false positives due to altering the initial query, which could quite plainly just be injecting noise/junk into the semantics of the query.
+
+\includegraphics[height=10in]{graph.png}
+
+A possible reason to explain the coin flip model’s performance could be that by assigning a random word from a small selection relevant docs per query term, rather than the entire corpus, that there is a decent chance that a long and infrequent term inside the document is being assigned to a unique query term that most commonly appears in queries that relate to a specific set of files. This could be worth investigating to see if it is indeed sufficient to find unique terms amongst each set and map them together with the hopes that they are related based on the training data provided.
+
+
 \section{Conclusion and Future Work}
-%TODO(todd): Summarize findings.
+
+Coinflip good! Thesaurus Co-occurrence expansion sad...
+
+Use learning to rank with TF-IDF and LM models and see how it can be improved with the Thesaurus and coin flip method. Coin flip can also be modified to bias the translation assignment to favor long, unique words. This way, whenever certain keywords appear in a query, they are likely mapped to terms that appear in only a few specific files. This is postulated to improve the results of coin flip drastically since it is an unbiased random assignment currently.
+
 \section{Contributions}
+
+Andrew: Thesaurus extraction method
+Todd: Github issue web scraper, CoinFlip probabilistic query expansion method
+Francisco: Evaluation tool, custom TF-IDF and LM feature classes
+
 \end{document}
